@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
-from .models import Requerimiento, ResultadoClasificacion
+from skema.core.domain.models import Requerimiento, ResultadoClasificacion
 
 class ClasificadorPort(ABC):
     """

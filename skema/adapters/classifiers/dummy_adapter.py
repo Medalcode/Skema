@@ -1,5 +1,5 @@
-from ...core.ports.interfaces import ClasificadorPort
-from ...core.domain.models import Requerimiento, ResultadoClasificacion
+from skema.core.ports.interfaces import ClasificadorPort
+from skema.core.domain.models import Requerimiento, ResultadoClasificacion
 
 class DummyClassifierAdapter(ClasificadorPort):
     """

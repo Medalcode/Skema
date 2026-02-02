@@ -1,6 +1,6 @@
 from typing import Dict, Optional
-from ...core.ports.interfaces import RepositorioResultadosPort
-from ...core.domain.models import ResultadoClasificacion
+from skema.core.ports.interfaces import RepositorioResultadosPort
+from skema.core.domain.models import ResultadoClasificacion
 
 class InMemoryStorageAdapter(RepositorioResultadosPort):
     """
