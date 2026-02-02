@@ -1,24 +1,33 @@
-# main.py - Clasificador
+# main.py - Clasificador Batch (Simulación)
+import sys
+import os
+
+# Ajuste de path para poder importar skema sin instalarlo
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from skema.core.domain.models import Requerimiento
+from skema.adapters.classifiers.dummy_adapter import DummyClassifierAdapter
 
 def main():
-
-    print("[Clasificador] Clasificando requerimientos...")
-    classifier = DummyClassifier()
-    requerimientos = [
-        {"id": 1, "texto": "el sistema debe permitir login de usuarios"},
-        {"id": 2, "texto": "generar reportes mensuales en pdf"},
+    print("[Clasificador Batch] Iniciando proceso por lotes...")
+    
+    # Instanciamos el MISMO adaptador que usa la API
+    classifier = DummyClassifierAdapter()
+    
+    raw_requerimientos = [
+        {"texto": "el sistema debe permitir login de usuarios"},
+        {"texto": "generar reportes mensuales en pdf"},
+        {"texto": "la base de datos debe ser postgresql"}
     ]
-    for req in requerimientos:
-        categoria = classifier.clasificar(req["texto"])
-        print(f"[Clasificador] Req {req['id']}: {categoria}")
+    
+    for raw in raw_requerimientos:
+        # Convertimos a Dominio
+        req = Requerimiento.crear_nuevo(texto=raw["texto"])
+        
+        # Clasificamos
+        resultado = classifier.clasificar(req)
+        
+        print(f"[Batch] Req {req.id[:8]}... -> {resultado.categoria} (Conf: {resultado.confianza})")
 
-class DummyClassifier:
-    def clasificar(self, texto):
-        """Clasificador de ejemplo: asigna categoría según palabras clave."""
-        if "login" in texto or "usuario" in texto:
-            return "Autenticación"
-        if "reporte" in texto or "pdf" in texto:
-            return "Reportes"
-        return "General"
 if __name__ == "__main__":
     main()
