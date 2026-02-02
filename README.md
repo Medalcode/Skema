@@ -68,6 +68,7 @@ Skema está diseñado para levantarse rápidamente en entornos de desarrollo.
 git clone https://github.com/medalcode/Skema.git
 cd Skema
 pip install -r requirements.txt
+python setup.py develop
 ```
 
 ### Ejecución de Servicios
@@ -76,15 +77,14 @@ El sistema es modular. Puedes levantar la API para inferencia en tiempo real:
 
 ```bash
 # Levantar el servidor de API (FastAPI)
-python api/main.py
-# Endpoint disponible en: http://localhost:8000/clasificar
+python -m skema.api.main
+# Endpoint disponible en: http://localhost:8000/classify
 ```
 
 O ejecutar simulaciones de los subsistemas:
 
 ```bash
-python ingestion/main.py    # Simula entrada de datos
-python monitoring/main.py   # Métricas de salud
+python -m skema.classifier.main    # Simula entrada de datos
 ```
 
 ---
@@ -93,12 +93,12 @@ python monitoring/main.py   # Métricas de salud
 
 La evolución de Skema se centra en la integración y la inteligencia:
 
-- [ ] **Fase 1: Robustez (Actual)** - Implementación de contratos estrictos de datos y arquitectura hexagonal.
+- [x] **Fase 1: Robustez (Actual)** - Implementación de contratos estrictos de datos y arquitectura hexagonal.
 - [ ] **Fase 2: Conectores Reales** - Adaptadores para Jira API y GitHub Issues.
 - [ ] **Fase 3: LLM Integration** - Adaptador de inferencia utilizando modelos OpenAI/LocalLLM para clasificación semántica compleja.
 - [ ] **Fase 4: Feedback Loop** - Re-entrenamiento automático basado en correcciones humanas.
 
 ---
 
-**Estado del Proyecto**: Alpha Funcional. Enfocado en validación de arquitectura.
+**Estado del Proyecto**: Hito 1 Completado. Arquitectura Hexagonal Estable.
 Consulta `BITACORA.md` para el registro operacional diario.
