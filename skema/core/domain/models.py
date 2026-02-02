@@ -3,32 +3,49 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 import uuid
 
-@dataclass(frozen=True)
-class Requerimiento:
+@dataclass(frozen=True, order=True)
+class ConfidenceScore:
     """
-    Representa un requerimiento de entrada en el sistema.
-    Es inmutable para evitar efectos secundarios durante el procesamiento.
+    Value Object que representa la certeza de una clasificación.
+    Garantiza que el valor siempre esté entre 0.0 y 1.0.
+    """
+    value: float
+
+    def __post_init__(self):
+        if not (0.0 <= self.value <= 1.0):
+            raise ValueError(f"ConfidenceScore must be between 0.0 and 1.0, got {self.value}")
+
+    def __str__(self):
+        return f"{self.value:.2f}"
+
+@dataclass(frozen=True)
+class Requirement:
+    """
+    Entidad raíz del agregado. Representa la unidad de trabajo cruda.
+    Inmutable.
     """
     id: str
-    texto: str
+    text: str
     timestamp: datetime = field(default_factory=datetime.now)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def crear_nuevo(cls, texto: str, metadata: Optional[Dict[str, Any]] = None) -> 'Requerimiento':
+    def create(cls, text: str, metadata: Optional[Dict[str, Any]] = None) -> 'Requirement':
+        if not text.strip():
+            raise ValueError("Requirement text cannot be empty")
         return cls(
             id=str(uuid.uuid4()),
-            texto=texto,
+            text=text,
             metadata=metadata or {}
         )
 
 @dataclass(frozen=True)
-class ResultadoClasificacion:
+class ClassificationResult:
     """
-    Resultado estandarizado de un proceso de clasificación.
+    Value Object complejo que agrupa el resultado de la inferencia.
     """
-    requerimiento_id: str
-    categoria: str
-    confianza: float = 1.0
-    modelo_utilizado: str = "unknown"
+    requirement_id: str
+    category: str
+    confidence: ConfidenceScore
+    model_version: str
     timestamp: datetime = field(default_factory=datetime.now)

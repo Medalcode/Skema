@@ -1,24 +1,39 @@
 from abc import ABC, abstractmethod
-from typing import List
-from skema.core.domain.models import Requerimiento, ResultadoClasificacion
+from typing import Optional
+from skema.core.domain.models import Requirement, ClassificationResult
 
-class ClasificadorPort(ABC):
+class ClassifierPort(ABC):
     """
-    Puerto (Interfaz) para los servicios de clasificación.
-    Cualquier adaptador (Dummy, OpenAI, Scikit) debe cumplir este contrato.
+    Puerto de SALIDA (Driven Port).
+    Define la capacidad de clasificar un requerimiento.
+    Implementado por adaptadores como: OpenAIAdapter, SpacyAdapter, DummyAdapter.
     """
     @abstractmethod
-    def clasificar(self, req: Requerimiento) -> ResultadoClasificacion:
+    def classify(self, req: Requirement) -> ClassificationResult:
         pass
 
-class RepositorioResultadosPort(ABC):
+class RequirementRepositoryPort(ABC):
     """
-    Puerto (Interfaz) para la persistencia de resultados.
+    Puerto de SALIDA (Driven Port).
+    Gestiona la persistencia de los Requerimientos crudos (Input).
     """
     @abstractmethod
-    def guardar(self, resultado: ResultadoClasificacion) -> None:
+    def save(self, req: Requirement) -> None:
         pass
 
     @abstractmethod
-    def obtener_por_id(self, id: str) -> ResultadoClasificacion:
+    def get_by_id(self, id: str) -> Optional[Requirement]:
+        pass
+
+class ClassificationRepositoryPort(ABC):
+    """
+    Puerto de SALIDA (Driven Port).
+    Gestiona la persistencia de los resultados de clasificación (Output).
+    """
+    @abstractmethod
+    def save(self, result: ClassificationResult) -> None:
+        pass
+
+    @abstractmethod
+    def get_by_requirement_id(self, req_id: str) -> Optional[ClassificationResult]:
         pass
