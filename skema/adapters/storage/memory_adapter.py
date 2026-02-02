@@ -1,18 +1,17 @@
 from typing import Dict, Optional
-from skema.core.ports.interfaces import RepositorioResultadosPort
-from skema.core.domain.models import ResultadoClasificacion
+from skema.core.ports.interfaces import ClassificationRepositoryPort
+from skema.core.domain.models import ClassificationResult
 
-class InMemoryStorageAdapter(RepositorioResultadosPort):
+class InMemoryClassificationRepository(ClassificationRepositoryPort):
     """
-    Almacenamiento volátil en memoria. 
-    Ideal para tests y prototipado rápido.
+    Adaptador en memoria para persistir RESULTADOS.
     """
     def __init__(self):
-        self._storage: Dict[str, ResultadoClasificacion] = {}
+        self._storage: Dict[str, ClassificationResult] = {}
 
-    def guardar(self, resultado: ResultadoClasificacion) -> None:
-        print(f"[StorageAdapter] Guardando en memoria: {resultado.requerimiento_id} -> {resultado.categoria}")
-        self._storage[resultado.requerimiento_id] = resultado
+    def save(self, result: ClassificationResult) -> None:
+        print(f"[Repo] Saving Result: {result.requirement_id} -> {result.category}")
+        self._storage[result.requirement_id] = result
 
-    def obtener_por_id(self, id: str) -> Optional[ResultadoClasificacion]:
-        return self._storage.get(id)
+    def get_by_requirement_id(self, req_id: str) -> Optional[ClassificationResult]:
+        return self._storage.get(req_id)

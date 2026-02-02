@@ -1,24 +1,44 @@
-from skema.core.ports.interfaces import ClasificadorPort
-from skema.core.domain.models import Requerimiento, ResultadoClasificacion
+from typing import Dict
+from skema.core.ports.interfaces import ClassifierPort
+from skema.core.domain.models import Requirement, ClassificationResult, ConfidenceScore
 
-class DummyClassifierAdapter(ClasificadorPort):
+class DummyClassifierAdapter(ClassifierPort):
     """
-    Implementación 'Dummy' del clasificador.
-    Útil para testing, desarrollo local y validación de contratos.
+    Adaptador 'Rule-Based' simple.
+    Implementa ClassifierPort usando reglas de palabras clave.
+    Es un reemplazo directo (Drop-in replacement) para modelos de ML complejos.
     """
-    def clasificar(self, req: Requerimiento) -> ResultadoClasificacion:
-        texto = req.texto.lower()
-        categoria = "General"
-        
-        # Lógica simple de palabras clave (misma que antes, pero encapsulada)
-        if "login" in texto or "usuario" in texto:
-            categoria = "Autenticación"
-        elif "reporte" in texto or "pdf" in texto:
-            categoria = "Reportes"
-            
-        return ResultadoClasificacion(
-            requerimiento_id=req.id,
-            categoria=categoria,
-            confianza=0.85, # Dummy confidence
-            modelo_utilizado="DummyAdapter-v1"
+    
+    # Reglas simples: keyword -> categoría
+    RULES: Dict[str, str] = {
+        "login": "Authentication",
+        "password": "Authentication",
+        "signin": "Authentication",
+        "pdf": "Reporting",
+        "report": "Reporting",
+        "export": "Reporting",
+        "slow": "Performance",
+        "latency": "Performance",
+        "db": "Infrastructure",
+        "sql": "Infrastructure",
+        "server": "Infrastructure"
+    }
+
+    def classify(self, req: Requirement) -> ClassificationResult:
+        text = req.text.lower()
+        category = "General"
+        confidence_value = 0.30 # Default low confidence
+
+        # Lógica de inferencia heurística
+        for keyword, mapped_category in self.RULES.items():
+            if keyword in text:
+                category = mapped_category
+                confidence_value = 0.90 # High confidence on keyword match
+                break 
+
+        return ClassificationResult(
+            requirement_id=req.id,
+            category=category,
+            confidence=ConfidenceScore(confidence_value),
+            model_version="DummyRules-v2"
         )
