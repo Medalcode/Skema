@@ -1,7 +1,7 @@
 import pytest
 
-from skema.adapters.storage.memory_adapter import InMemoryClassificationRepository
-from skema.core.domain.models import Requirement, ClassificationResult, ConfidenceScore
+from skema.adapters.storage import InMemoryClassificationRepository
+from skema.core.models import Requirement, ClassificationResult, ConfidenceScore
 
 
 def test_inmemory_classification_repository_contract():

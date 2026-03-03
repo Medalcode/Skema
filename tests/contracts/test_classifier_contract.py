@@ -1,7 +1,7 @@
 import pytest
 
-from skema.adapters.classifiers.dummy_adapter import DummyClassifierAdapter
-from skema.core.domain.models import Requirement, ClassificationResult, ConfidenceScore
+from skema.adapters.classifiers import DummyClassifierAdapter
+from skema.core.models import Requirement, ClassificationResult, ConfidenceScore
 
 
 def test_dummy_classifier_contract():

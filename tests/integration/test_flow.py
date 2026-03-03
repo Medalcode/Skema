@@ -1,8 +1,8 @@
 import unittest
-from skema.core.domain.models import Requirement, ClassificationResult, ConfidenceScore
-from skema.core.application.use_cases import ClassifyRequirementUseCase
-from skema.adapters.classifiers.dummy_adapter import DummyClassifierAdapter
-from skema.adapters.storage.memory_adapter import InMemoryClassificationRepository
+from skema.core.models import Requirement, ClassificationResult, ConfidenceScore
+from skema.core.use_cases import ClassifyRequirementUseCase
+from skema.adapters.classifiers import DummyClassifierAdapter
+from skema.adapters.storage import InMemoryClassificationRepository
 
 class TestHexagonalArchitecture(unittest.TestCase):
     

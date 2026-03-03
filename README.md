@@ -26,22 +26,22 @@ Skema no es simplemente un script de clasificación; es un **sistema de procesam
 
 ---
 
-## 🏗 Arquitectura de Alto Nivel
+## 🏗 Arquitectura de Alto Nivel (Consolidada)
 
-El sistema sigue un pipeline lineal desacoplado:
+El sistema sigue una arquitectura hexagonal simplificada (Lean) orquestada por un **Agente Generalista**:
 
 ```mermaid
 graph LR
-    A[Fuentes Externas] -->|Ingestion| B(Normalización)
-    B -->|Clean Text| C{Clasificador}
-    C -->|Label + Confidence| D[Almacenamiento]
-    C -->|Event| E[API/Webhooks]
+    A[Fuentes Externas] -->|DTO| B(API /classify)
+    B -->|UseCase| C{Agente Generalista}
+    C -->|Skill| D[RequirementProcessor]
+    C -->|Skill| E[SmartClassifier]
+    C -->|Skill| F[DataArchivist]
 ```
 
-1.  **Ingestion Layer**: Adaptadores para diferentes fuentes de datos.
-2.  **Preprocessing Engine**: Limpieza estandarizada para garantizar consistencia en la inferencia.
-3.  **Inference Core**: El "cerebro" intercambiable. Actualmente soporta reglas deterministas, extensible a modelos probabilísticos.
-4.  **Distribution Layer**: API y persistencia para entregar los resultados donde se necesitan.
+1.  **Core (Agente)**: Orquestador único que gestiona el ciclo de vida del requerimiento.
+2.  **Adapters (Skills)**: Capacidades paramétricas y reutilizables (Clasificadores, Procesamiento, Almacenamiento).
+3.  **API Layer**: Entrada REST robusta basada en FastAPI.
 
 ---
 
@@ -73,7 +73,7 @@ python setup.py develop
 
 ### Ejecución de Servicios
 
-El sistema es modular. Puedes levantar la API para inferencia en tiempo real:
+El sistema está consolidado. Puedes levantar la API para inferencia en tiempo real:
 
 ```bash
 # Levantar el servidor de API (FastAPI)
@@ -81,11 +81,7 @@ python -m skema.api.main
 # Endpoint disponible en: http://localhost:8000/classify
 ```
 
-O ejecutar simulaciones de los subsistemas:
-
-```bash
-python -m skema.classifier.main    # Simula entrada de datos
-```
+Para simulaciones de carga masiva o pruebas batch, utiliza el Agente Generalista inyectado en scripts de `/scripts` (próximamente).
 
 ---
 

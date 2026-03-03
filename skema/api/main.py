@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
 
 # Imports Limpios (Bootstrap + Domain)
-from skema.core.domain.models import Requirement
+from skema.core.models import Requirement
 from skema.bootstrap import bootstrap
 
 # --- Configuración Inicial ---

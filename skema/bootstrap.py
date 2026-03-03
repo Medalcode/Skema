@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from skema.adapters.classifiers.dummy_adapter import DummyClassifierAdapter
-from skema.adapters.storage.memory_adapter import InMemoryClassificationRepository
-from skema.core.application.use_cases import ClassifyRequirementUseCase
+from skema.adapters.classifiers import DummyClassifierAdapter
+from skema.adapters.storage import InMemoryClassificationRepository
+from skema.core.use_cases import ClassifyRequirementUseCase
 
 @dataclass
 class Container:

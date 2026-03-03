@@ -43,3 +43,18 @@ Registro y despliegue
 ---------------------
 - Registrar la skill en `skema/bootstrap.py` para que sea inyectada en los Agents.
 - Mantener compatibilidad hacia atrás cuando se versionen skills (semver para adaptadores).
+
+## Inventario de Super-Skills (Paramétricas)
+------------------------------------------
+
+### 1. RequirementProcessor (Fusión de `Preprocessor` y `Formatter`)
+- **Parámetros:** `clean: bool`, `lowercase: bool`, `remove_special: bool`.
+- **Lógica:** Implementa el 80% de la lógica de limpieza de texto dispersa en `preprocessing/main.py`.
+
+### 2. DataArchivist (Fusión de `Ingestor`, `Repository` y `Storage`)
+- **Parámetros:** `source: string`, `destination: string`, `mode: ['read', 'write', 'stream']`.
+- **Lógica:** Unifica el acceso a datos (Lectura/Escritura) bajo una misma interfaz paramétrica.
+
+### 3. SmartClassifier (Skill Paramétrica)
+- **Parámetros:** `engine: ['dummy', 'openai', 'spacy']`, `min_confidence: float`.
+- **Lógica:** Encapsula múltiples motores de clasificación en una sola Skill.

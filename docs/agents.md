@@ -28,3 +28,16 @@ Checklist para PR de un Agent
 - [ ] Tests unitarios del caso de uso con mocks de skills.
 - [ ] Ejemplo de integración (opcional) en `tests/integration/`.
 
+## Catálogo de Agentes (Consolidado)
+-------------------------------
+
+### 1. SkemaGeneralistAgent (Caso de Uso: `ClassifyRequirementUseCase`)
+- **Estado:** ACTIVO (Fusión de Ingestor, Preprocessor y Classifier).
+- **Rol:** Orquestador versátil que maneja el ciclo de vida completo del requerimiento.
+- **Skills asociadas:** `RequirementProcessor`, `DataArchivist`, `ClassifierPort`.
+
+### [OBSOLETO] Mini-Agentes Fragmentados
+- `IngestorAgent`: Fusionado en el flujo de entrada del Generalista.
+- `PreprocessorAgent`: Convertido en una etapa del `RequirementProcessor`.
+- `StorageAgent`: Reemplazado por persistencia inyectada en el Generalista.
+

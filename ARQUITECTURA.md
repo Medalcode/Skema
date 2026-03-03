@@ -1,13 +1,12 @@
 # Arquitectura del Clasificador Automático de Requerimientos
 
-## Estructura de Carpetas
+## Estructura de Carpetas (Lean)
 
-- ingestion/: Módulo de ingesta de datos (fuentes externas, colas, APIs)
-- preprocessing/: Preprocesamiento y limpieza de requerimientos
-- classifier/: Modelos de Machine Learning y lógica de clasificación
-- api/: API REST/gRPC para exponer el servicio
-- storage/: Persistencia de datos (NoSQL, SQL, archivos)
-- monitoring/: Monitoreo, logging y métricas
+- skema/core/: Corazón del sistema (Modelos, Interfaces y Casos de Uso/Agente).
+- skema/adapters/: Implementaciones concretas (Skills) de los puertos definidos en core.
+- skema/api/: Punto de entrada REST (FastAPI).
+- docs/: Documentación detallada de Agentes y Skills.
+- tests/: Suite de pruebas unitarias, integrales y de contrato.
 
 ## Flujo General
 
@@ -28,19 +27,19 @@
 
 Cada carpeta contendrá su propio README y archivos de implementación.
 
-## Guía rápida de integración y prueba
+## Guía rápida de integración y operación (Consolidada)
 
-1. Ejecuta cada módulo por separado:
-	- `python ingestion/main.py` para simular la ingesta de requerimientos.
-	- `python preprocessing/main.py` para limpiar y normalizar requerimientos.
-	- `python classifier/main.py` para clasificar requerimientos.
-	- `python storage/main.py` para simular el guardado de resultados.
-	- `python monitoring/main.py` para exponer métricas en http://localhost:8001.
-	- `python api/main.py` para levantar la API REST (FastAPI) en http://localhost:8000.
+1. **Agente Generalista**: Skema ahora opera mediante un único punto de entrada orquestado por `ClassifyRequirementUseCase`.
+   - La lógica de ingesta, preprocesamiento y clasificación se ha unificado para reducir fragmentación.
+   - Configura las Super-Skills en `skema/bootstrap.py`.
 
-2. Prueba la API:
-	- Realiza un POST a `/clasificar` con un JSON como `{ "texto": "El sistema debe permitir login de usuarios" }` y recibe la categoría.
+2. **Ejecución**:
+   - Levanta la API REST: `python -m skema.api.main` (Puerto 8000).
+   - El endpoint `/classify` orquesta automáticamente todas las etapas anteriores.
 
-3. Integra los módulos conectando la salida de uno como entrada del siguiente para un flujo automatizado.
+3. **Prueba la API**:
+   - Realiza un POST a `/classify` con un JSON como `{ "text": "El sistema debe permitir login de usuarios" }`.
+   - Recibirás una respuesta categorizada con nivel de confianza.
 
-4. Personaliza cada módulo para fuentes, modelos y almacenamiento reales según tus necesidades.
+4. **Extensión**:
+   - Para añadir capacidades, no crees nuevos módulos; añade Super-Skills paramétricas en `skema/adapters/`.
