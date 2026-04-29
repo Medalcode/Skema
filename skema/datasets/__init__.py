@@ -4,6 +4,7 @@ Dataset generator - crea tickets sintéticos realistas para demostración.
 
 import random
 from typing import List
+
 from skema.core.models import Requirement
 
 # Plantillas de tickets realistas por categoría
@@ -95,7 +96,7 @@ TICKET_TEMPLATES = {
 }
 
 
-def generate_synthetic_tickets(count: int = 500) -> List[Requirement]:
+def generate_synthetic_tickets(count: int = 500) -> list[Requirement]:
     """
     Genera N tickets sintéticos realistas.
     Distribución aproximada por categoría:
@@ -108,7 +109,7 @@ def generate_synthetic_tickets(count: int = 500) -> List[Requirement]:
     - General: 2%
     """
     tickets = []
-    
+
     # Distribución de categorías
     distribution = {
         "Bug": int(count * 0.30),
@@ -119,7 +120,7 @@ def generate_synthetic_tickets(count: int = 500) -> List[Requirement]:
         "Security": int(count * 0.08),
         "General": int(count * 0.02),
     }
-    
+
     for category, num_tickets in distribution.items():
         templates = TICKET_TEMPLATES[category]
         for _ in range(num_tickets):
@@ -133,7 +134,7 @@ def generate_synthetic_tickets(count: int = 500) -> List[Requirement]:
                     "[Customer Report]",
                     ""
                 ])
-            
+
             ticket = Requirement.create(
                 text=text,
                 metadata={
@@ -142,10 +143,10 @@ def generate_synthetic_tickets(count: int = 500) -> List[Requirement]:
                 }
             )
             tickets.append(ticket)
-    
+
     # Mezcla
     random.shuffle(tickets)
-    
+
     return tickets[:count]
 
 

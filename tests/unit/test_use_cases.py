@@ -1,6 +1,6 @@
-from typing import Optional, Dict
-from skema.core.interfaces import ClassifierPort, ClassificationRepositoryPort
-from skema.core.models import Requirement, ClassificationResult, ConfidenceScore
+
+from skema.core.interfaces import ClassificationRepositoryPort, ClassifierPort
+from skema.core.models import ClassificationResult, ConfidenceScore, Requirement
 
 # --- FAKES para Testing Unitario Estricto ---
 # A diferencia de un Dummy/Mock, un Fake tiene implementación funcional pero simplificada.
@@ -22,38 +22,40 @@ class FakeClassifier(ClassifierPort):
 
 class FakeRepository(ClassificationRepositoryPort):
     def __init__(self):
-        self.saved_results: Dict[str, ClassificationResult] = {}
+        self.saved_results: dict[str, ClassificationResult] = {}
 
     def save(self, result: ClassificationResult) -> None:
         self.saved_results[result.requirement_id] = result
 
-    def get_by_requirement_id(self, req_id: str) -> Optional[ClassificationResult]:
+    def get_by_requirement_id(self, req_id: str) -> ClassificationResult | None:
         return self.saved_results.get(req_id)
 
 # --- TESTS ---
 
 import unittest
+
 from skema.core.use_cases import ClassifyRequirementUseCase
 
+
 class TestClassifyUseCase(unittest.TestCase):
-    
+
     def test_execute_orchestrates_flow_correctly(self):
         # 1. Arrange (Setup con Fakes)
         fake_clf = FakeClassifier(fixed_category="Critical")
         fake_repo = FakeRepository()
         use_case = ClassifyRequirementUseCase(fake_clf, fake_repo)
-        
+
         req = Requirement.create("System crash")
 
         # 2. Act
         result = use_case.execute(req)
 
         # 3. Assert (Verificar Orquestación)
-        
+
         # Clasificador fue llamado?
         self.assertTrue(fake_clf.called)
         self.assertEqual(result.category, "Critical")
-        
+
         # Resultado fue persistido?
         stored = fake_repo.get_by_requirement_id(req.id)
         self.assertIsNotNone(stored)

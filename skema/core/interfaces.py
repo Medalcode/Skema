@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Optional
-from skema.core.models import Requirement, ClassificationResult
+
+from skema.core.models import ClassificationResult, Requirement
+
 
 class ClassifierPort(ABC):
     """
@@ -22,7 +23,7 @@ class RequirementRepositoryPort(ABC):
         pass
 
     @abstractmethod
-    def get_by_id(self, id: str) -> Optional[Requirement]:
+    def get_by_id(self, id: str) -> Requirement | None:
         pass
 
 class ClassificationRepositoryPort(ABC):
@@ -35,7 +36,7 @@ class ClassificationRepositoryPort(ABC):
         pass
 
     @abstractmethod
-    def get_by_requirement_id(self, req_id: str) -> Optional[ClassificationResult]:
+    def get_by_requirement_id(self, req_id: str) -> ClassificationResult | None:
         pass
 
 class ProcessorPort(ABC):

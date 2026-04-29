@@ -1,23 +1,19 @@
 # main.py - API REST con Dashboard
-from fastapi import FastAPI, HTTPException, status, Depends
-from fastapi.responses import JSONResponse
-from fastapi.responses import HTMLResponse
+from typing import Any
+
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
-from typing import Dict, Any, Optional
-from sqlalchemy.orm import Session
 from sqlalchemy import func
-from datetime import datetime
+from sqlalchemy.orm import Session
+
+from skema.bootstrap import bootstrap
 
 # Imports Limpios (Bootstrap + Domain)
 from skema.core.models import Requirement
-from skema.bootstrap import bootstrap
-from skema.infrastructure.database import init_db, get_db, engine, Base
-from skema.infrastructure.models import (
-    RequirementModel, 
-    ClassificationModel, 
-    FeedbackModel
-)
 from skema.dashboard import get_template
+from skema.infrastructure.database import get_db, init_db
+from skema.infrastructure.models import ClassificationModel, FeedbackModel
 
 # --- Configuración Inicial ---
 app = FastAPI(
@@ -39,7 +35,7 @@ def startup():
 
 class RequirementRequest(BaseModel):
     text: str = Field(..., min_length=5, description="El texto crudo del requerimiento")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Datos contextuales opcionales")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Datos contextuales opcionales")
 
 class ClassificationResponse(BaseModel):
     id: str
@@ -49,9 +45,9 @@ class ClassificationResponse(BaseModel):
 
 class FeedbackRequest(BaseModel):
     classification_id: str
-    corrected_category: Optional[str] = None
-    is_correct: Optional[bool] = None
-    notes: Optional[str] = None
+    corrected_category: str | None = None
+    is_correct: bool | None = None
+    notes: str | None = None
 
 # --- Endpoints de Health ---
 
@@ -76,16 +72,16 @@ def classify_endpoint(req_dto: RequirementRequest, db: Session = Depends(get_db)
     try:
         # 1. Bootstrap con sesión actual
         container = bootstrap(session=db)
-        
+
         # 2. Adaptación (DTO -> Domain)
         domain_req = Requirement.create(
             text=req_dto.text,
             metadata=req_dto.metadata
         )
-        
+
         # 3. Delegación (Use Case)
         result = container.classify_requirement.execute(domain_req)
-        
+
         # 4. Respuesta
         return ClassificationResponse(
             id=result.requirement_id,
@@ -157,30 +153,30 @@ def dashboard_home(db: Session = Depends(get_db)):
     """Dashboard principal - últimas clasificaciones y estadísticas"""
     try:
         container = bootstrap(session=db)
-        
+
         # Obtén últimas clasificaciones
         recent = db.query(ClassificationModel).order_by(
             ClassificationModel.created_at.desc()
         ).limit(20).all()
-        
+
         # Estadísticas
         total = db.query(ClassificationModel).count()
         low_conf = db.query(ClassificationModel).filter(
             ClassificationModel.confidence < 0.6
         ).count()
-        
+
         avg_conf_result = db.query(func.avg(ClassificationModel.confidence)).scalar() or 0.75
         avg_conf = float(avg_conf_result) if avg_conf_result else 0.75
-        
+
         accuracy = container.feedback_repository.calculate_accuracy()
-        
+
         stats = {
             "total_processed": total,
             "low_confidence_count": low_conf,
             "avg_confidence": avg_conf,
             "accuracy": accuracy
         }
-        
+
         template = get_template("index.html")
         return template.render(
             stats=stats,
@@ -205,7 +201,7 @@ def dashboard_review(db: Session = Depends(get_db)):
         ).order_by(
             ClassificationModel.created_at.desc()
         ).limit(50).all()
-        
+
         template = get_template("review.html")
         return template.render(
             low_confidence_items=[{
@@ -224,18 +220,18 @@ def dashboard_metrics(db: Session = Depends(get_db)):
     try:
         # Estadísticas generales
         total = db.query(ClassificationModel).count()
-        
+
         container = bootstrap(session=db)
         accuracy = container.feedback_repository.calculate_accuracy()
-        
+
         # Distribución por categoría
         category_dist = db.query(
             ClassificationModel.category,
             func.count(ClassificationModel.id)
         ).group_by(ClassificationModel.category).all()
-        
+
         category_distribution = {cat: count for cat, count in category_dist}
-        
+
         # Distribución de confianza (histogramas)
         confidence_ranges = {
             "0-20%": db.query(ClassificationModel).filter(ClassificationModel.confidence < 0.2).count(),
@@ -250,18 +246,18 @@ def dashboard_metrics(db: Session = Depends(get_db)):
             ).count(),
             "80-100%": db.query(ClassificationModel).filter(ClassificationModel.confidence >= 0.8).count(),
         }
-        
+
         total_feedback = db.query(FeedbackModel).count()
         avg_conf_result = db.query(func.avg(ClassificationModel.confidence)).scalar() or 0.75
         avg_conf = float(avg_conf_result) if avg_conf_result else 0.75
-        
+
         stats = {
             "total_processed": total,
             "total_feedback": total_feedback,
             "accuracy": accuracy,
             "avg_confidence": avg_conf
         }
-        
+
         template = get_template("metrics.html")
         return template.render(
             stats=stats,
