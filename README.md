@@ -1,8 +1,8 @@
 # Skema
 
-**Pipeline de Inteligencia para Clasificación de Requerimientos**
+**Middleware Inteligente para Clasificación y Routing de Requerimientos Operacionales**
 
-> Skema automatiza el triaje, categorización y enrutamiento de requerimientos de software a escala, transformando entradas de texto no estructurado en datos operativos accionables.
+> Skema automatiza el triaje, categorización y enrutamiento de requerimientos de software a escala, transformando entradas de texto no estructurado en datos operativos accionables con inteligencia híbrida y feedback humano.
 
 ---
 
@@ -13,88 +13,278 @@ En equipos de producto y operaciones de ingeniería de alto volumen, la entrada 
 - **Cuello de botella manual:** Product Managers y Tech Leads pierden horas semanales clasificando y asignando tickets.
 - **Inconsistencia:** La clasificación manual varía según quién la haga y cuándo.
 - **Datos muertos:** El feedback valioso se pierde en el ruido por falta de etiquetado inmediato.
+- **Costo operacional:** Clasificación deficiente genera routing incorrecto y retrasos en resolución.
 
 ## 💡 La Solución
 
-Skema no es simplemente un script de clasificación; es un **sistema de procesamiento de flujo de datos** diseñado para operar como middleware inteligente entre las fuentes de entrada (Jira, Slack, Email) y los sistemas de gestión.
+Skema es un **sistema operativo de intake inteligente** diseñado para operar como middleware entre las fuentes de entrada (GitHub, Jira, Slack, Email) y los sistemas de gestión.
 
-### Principios de Diseño
+### Principios Clave
 
-1.  **Modularidad Aislada:** La lógica de ingesta, limpieza, inferencia y persistencia están desacopladas. Cambiar el modelo de ML no afecta a la API.
-2.  **Product-Ready:** Construido pensando en observabilidad, contratos de datos estrictos y operación continua, no en notebooks experimentales.
-3.  **Agnóstico al Modelo:** Arquitectura preparada para intercambiar motores de clasificación (desde RegEx y Heurísticas hasta LLMs) sin reescribir el sistema.
+1. **Modularidad Aislada:** La lógica de ingesta, limpieza, inferencia y persistencia están completamente desacopladas. Cambiar el motor de clasificación no afecta la API.
+2. **Product-Ready:** Construido con observabilidad, contratos de datos estrictos, persistencia real y operación continua en mente.
+3. **Agnóstico al Modelo:** Arquitectura hexagonal que permite intercambiar motores de clasificación (Reglas → Embeddings → LLMs → Ensembles) sin reescribir el sistema.
+4. **Feedback Loop:** Incorpora correcciones humanas para mejora continua del sistema.
 
 ---
 
-## 🏗 Arquitectura de Alto Nivel (Consolidada)
+## ✨ Características Actuales (FASE 1: MVP)
 
-El sistema sigue una arquitectura hexagonal simplificada (Lean) orquestada por un **Agente Generalista**:
+### 🧠 Clasificador Híbrido Inteligente
+- **Reglas Keyword-Based:** Detecta patrones determinísticos rápidamente
+- **Embeddings Semánticos:** Búsqueda semántica cuando las reglas son insuficientes
+- **Confidence Scoring Real:** Score 0.0-1.0 que refleja certeza verdadera
+- **Fallback Elegante:** Sistema sigue funcionando incluso si embeddings no están disponibles
 
-```mermaid
-graph LR
-    A[Fuentes Externas] -->|DTO| B(API /classify)
-    B -->|UseCase| C{Agente Generalista}
-    C -->|Skill| D[RequirementProcessor]
-    C -->|Skill| E[SmartClassifier]
-    C -->|Skill| F[DataArchivist]
+### 💾 Persistencia y Observabilidad
+- **PostgreSQL ORM:** Persistencia real con SQLAlchemy
+- **4 Modelos de Datos:** Requirements, Classifications, Feedback, Metrics
+- **Feedback Loop Completo:** Captura correcciones humanas para mejora continua
+
+### 🎨 Dashboard Operacional
+- **Home:** Últimas clasificaciones + estadísticas en tiempo real
+- **Revisión:** Tickets de baja confianza listos para corrección humana
+- **Métricas:** Distribución de categorías, histogramas de confianza, precisión
+
+### 🚀 API REST Completa
+- `POST /classify` - Clasificar nuevo requerimiento
+- `POST /api/feedback` - Registrar feedback humano
+- `GET /` - Dashboard principal
+- `GET /review` - Panel de revisión
+- `GET /metrics` - Métricas del sistema
+- `GET /health` - Health check
+
+### 📦 Categorías Soportadas
+- **Bug:** Defectos, errores, crashes
+- **Feature:** Nuevas funcionalidades, mejoras
+- **Documentation:** Docs, wikis, guías
+- **Infrastructure:** DevOps, deployment, CI/CD
+- **Performance:** Optimización, escalabilidad
+- **Security:** Vulnerabilidades, seguridad
+- **General:** Otros
+
+---
+
+## 🏗 Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Entrada Externa                          │
+│              (GitHub, Jira, Email, API)                     │
+└─────────────────────────────────┬───────────────────────────┘
+                                  │
+                    ┌─────────────▼──────────────┐
+                    │   FastAPI REST Endpoint    │
+                    │   /classify                │
+                    └─────────────┬──────────────┘
+                                  │
+        ┌─────────────────────────▼──────────────────────────┐
+        │      Use Case: ClassifyRequirement                  │
+        └─────────────────────────┬──────────────────────────┘
+                                  │
+        ┌─────────────────────────▼──────────────────────────┐
+        │      HybridClassifier Adapter                       │
+        │  ┌──────────────┐  ┌──────────────┐                │
+        │  │ Keyword Rules│  │  Embeddings  │                │
+        │  └──────────────┘  └──────────────┘                │
+        │         │                  │                        │
+        │         └──────┬───────────┘                        │
+        │                ▼                                    │
+        │          Confidence Score                          │
+        │          (0.0 - 1.0)                               │
+        └─────────────────────────┬──────────────────────────┘
+                                  │
+        ┌─────────────────────────▼──────────────────────────┐
+        │      PostgreSQL Repository                          │
+        │  ┌──────────────┐  ┌──────────────┐                │
+        │  │ Requirements │  │Classifications│                │
+        │  └──────────────┘  └──────────────┘                │
+        │  ┌──────────────┐  ┌──────────────┐                │
+        │  │  Feedback    │  │   Metrics    │                │
+        │  └──────────────┘  └──────────────┘                │
+        └─────────────────────────┬──────────────────────────┘
+                                  │
+                    ┌─────────────▼──────────────┐
+                    │  Dashboard + Observabilidad│
+                    │ (Métricas, Precisión, UI) │
+                    └────────────────────────────┘
 ```
 
-1.  **Core (Agente)**: Orquestador único que gestiona el ciclo de vida del requerimiento.
-2.  **Adapters (Skills)**: Capacidades paramétricas y reutilizables (Clasificadores, Procesamiento, Almacenamiento).
-3.  **API Layer**: Entrada REST robusta basada en FastAPI.
-
 ---
 
-## 🚀 Casos de Uso Reales
+## 🚀 Inicio Rápido
 
-- **Backlog Grooming Automático**: Etiquetar automáticamente tickets entrantes como "Bug", "Feature", "Deuda Técnica" antes de que un humano los vea.
-- **Routing de Soporte N1**: Detectar keywords críticas (ej. "login fallido", "seguridad") para escalar incidentes inmediatamente.
-- **Análisis de Sentimiento de Producto**: Agregar miles de comentarios de feedback para detectar tendencias en módulos específicos (ej. "Muchos reclamos sobre Reportes").
-
----
-
-## 🛠 Guía de Inicio Rápido (Local)
-
-Skema está diseñado para levantarse rápidamente en entornos de desarrollo.
-
-### Prerrequisitos
-
-- Python 3.9+
-- Pip
-
-### Instalación
+### Opción A: Docker (Recomendado - 5 minutos)
 
 ```bash
-git clone https://github.com/medalcode/Skema.git
-cd Skema
+# 1. Construye y levanta servicios
+docker-compose up --build
+
+# 2. En otra terminal: carga demo con 200 tickets
+docker exec -it skema_api python scripts/demo.py
+
+# 3. Abre dashboard
+open http://localhost:8000
+```
+
+### Opción B: Local (requiere PostgreSQL)
+
+```bash
+# 1. Instala dependencias
 pip install -r requirements.txt
-python setup.py develop
-```
 
-### Ejecución de Servicios
+# 2. Configura variable de entorno
+export DATABASE_URL="postgresql://skema:skema@localhost:5432/skema_db"
 
-El sistema está consolidado. Puedes levantar la API para inferencia en tiempo real:
+# 3. Ejecuta demostración
+python scripts/demo.py --count 200
 
-```bash
-# Levantar el servidor de API (FastAPI)
+# 4. Levanta API
 python -m skema.api.main
-# Endpoint disponible en: http://localhost:8000/classify
+
+# 5. Abre http://localhost:8000
 ```
 
-Para simulaciones de carga masiva o pruebas batch, utiliza el Agente Generalista inyectado en scripts de `/scripts` (próximamente).
+### Resultado Esperado
+```
+✅ 200 tickets clasificados automáticamente
+✅ Dashboard visible con últimas clasificaciones
+✅ Puedes proporcionar feedback humano
+✅ Métricas en tiempo real
+
+Estadísticas:
+- Total procesado: 200
+- Confianza promedio: 0.82
+- Baja confianza (<60%): ~15 tickets
+- Distribución: 30% Bugs, 25% Features, 15% Infrastructure, etc.
+```
+
+---
+
+## 📊 Demostración Interactiva
+
+1. Abre http://localhost:8000 (Dashboard Home)
+2. Verás últimas 20 clasificaciones automáticas
+3. Haz click en botón **"Feedback"** en cualquier ticket
+4. Proporciona feedback:
+   - "✓ Correcta" → marca como acertado
+   - "✎ Corregir" → proporciona categoría correcta
+5. En `/metrics` verás actualizada la precisión
+
+---
+
+## 🏗 Estructura del Proyecto
+
+```
+skema/
+├── core/                  # Dominio (limpio, sin dependencias)
+│   ├── interfaces.py      # Puertos hexagonales
+│   ├── models.py          # Entidades y Value Objects
+│   └── use_cases.py       # Application Services
+├── adapters/              # Implementaciones concretas
+│   ├── classifiers.py     # Dummy + Hybrid (Reglas + Embeddings)
+│   └── processor.py       # Limpieza de texto
+├── infrastructure/        # Capas técnicas
+│   ├── database.py        # SQLAlchemy setup
+│   ├── models.py          # ORM Models
+│   └── repositories.py    # PostgreSQL implementations
+├── api/                   # API REST + Dashboard
+│   └── main.py            # FastAPI server
+├── dashboard/             # UI (Jinja2 templates)
+│   └── templates/         # HTML pages
+├── datasets/              # Data generation
+│   └── __init__.py        # Synthetic ticket generator
+├── bootstrap.py           # Dependency injection
+└── tests/                 # Test suite
+```
 
 ---
 
 ## 🗺 Roadmap
 
-La evolución de Skema se centra en la integración y la inteligencia:
+### ✅ Fase 1: MVP Demostrable (COMPLETADA)
+- [x] Clasificador híbrido (Reglas + Embeddings)
+- [x] Persistencia PostgreSQL
+- [x] Dashboard operacional (3 páginas)
+- [x] Feedback loop humano
+- [x] Dataset sintético realista
+- [x] Docker + docker-compose
 
-- [x] **Fase 1: Robustez (Actual)** - Implementación de contratos estrictos de datos y arquitectura hexagonal.
-- [ ] **Fase 2: Conectores Reales** - Adaptadores para Jira API y GitHub Issues.
-- [ ] **Fase 3: LLM Integration** - Adaptador de inferencia utilizando modelos OpenAI/LocalLLM para clasificación semántica compleja.
-- [ ] **Fase 4: Feedback Loop** - Re-entrenamiento automático basado en correcciones humanas.
+### 📋 Fase 2: Observabilidad y Tests
+- [ ] Logging estructurado (JSON)
+- [ ] Prometheus metrics
+- [ ] Unit + Integration tests
+- [ ] Error handling mejorado
+- [ ] CI/CD pipeline
+
+### 🔌 Fase 3: Conectores Reales
+- [ ] GitHub Issues adapter
+- [ ] Jira API adapter
+- [ ] Webhook listeners
+- [ ] Batch processing
+
+### 🧠 Fase 4: Inteligencia Avanzada
+- [ ] Reentrenamiento incremental
+- [ ] Multi-model ensemble
+- [ ] Detección de drift
+- [ ] Recomendaciones automáticas
 
 ---
 
-**Estado del Proyecto**: Hito 1 Completado. Arquitectura Hexagonal Estable.
-Consulta `BITACORA.md` para el registro operacional diario.
+## 📖 Documentación
+
+- [QUICKSTART.md](QUICKSTART.md) - Instrucciones rápidas (5 minutos)
+- [CHANGELOG_MVP.md](CHANGELOG_MVP.md) - Cambios técnicos detallados
+- [ARQUITECTURA.md](ARQUITECTURA.md) - Visión de alto nivel
+- [docs/agents.md](docs/agents.md) - Documento de agentes
+- [docs/skills.md](docs/skills.md) - Documento de skills
+
+---
+
+## 🔧 Configuración
+
+Copia `.env.example` a `.env` y ajusta según necesites:
+
+```bash
+# Database
+DATABASE_URL=postgresql://skema:skema@localhost:5432/skema_db
+
+# API
+API_PORT=8000
+
+# Classifier
+CLASSIFIER_MODEL=hybrid
+CONFIDENCE_THRESHOLD=0.60
+
+# Embeddings
+EMBEDDINGS_MODEL=all-MiniLM-L6-v2
+```
+
+---
+
+## 📈 Casos de Uso Reales
+
+- **Backlog Grooming Automático:** Etiquetar tickets como Bug/Feature/Tech Debt antes de que un humano los vea
+- **Routing de Soporte N1:** Detectar keywords críticas para escalar incidentes de seguridad inmediatamente
+- **Análisis de Tendencias:** Identificar patrones en miles de comentarios de usuarios
+- **Matriz de Impacto:** Priorizar features basado en volumen de feedback
+- **Auditoría:** Revisar decisiones automáticas con feedback humano
+
+---
+
+## 🤝 Contribuir
+
+Por favor consulta [BITACORA.md](BITACORA.md) para detalles de desarrollo.
+
+---
+
+## 📄 Licencia
+
+MIT
+
+---
+
+**Estado Actual:** FASE 1 - MVP Funcional ✅
+Última actualización: 15 de mayo de 2026
+
+Para más detalles técnicos, ver [CHANGELOG_MVP.md](CHANGELOG_MVP.md)

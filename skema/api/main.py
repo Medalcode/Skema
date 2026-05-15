@@ -1,25 +1,37 @@
-# main.py - API
-from fastapi import FastAPI, HTTPException, status
+# main.py - API REST con Dashboard
+from fastapi import FastAPI, HTTPException, status, Depends
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from datetime import datetime
 
 # Imports Limpios (Bootstrap + Domain)
 from skema.core.models import Requirement
 from skema.bootstrap import bootstrap
+from skema.infrastructure.database import init_db, get_db, engine, Base
+from skema.infrastructure.models import (
+    RequirementModel, 
+    ClassificationModel, 
+    FeedbackModel
+)
+from skema.dashboard import get_template
 
 # --- Configuración Inicial ---
 app = FastAPI(
-    title="Skema API", 
-    version="0.1.0-alpha",
-    description="Intelligent Requirements Classification Platform"
+    title="Skema API",
+    version="0.2.0-mvp",
+    description="Intelligent Requirements Classification Platform with Human Feedback Loop"
 )
 
-# Composition Root (Inyección)
-container = bootstrap()
+# Inicializa base de datos
+@app.on_event("startup")
+def startup():
+    init_db()
+    print("✅ Database initialized")
 
 # --- DTOs (Data Transfer Objects) ---
-# Capa de Presentación: Estos objetos son "contratos" con el cliente HTTP.
-# No son el dominio. Pueden tener nombres diferentes o validaciones extra.
 
 class RequirementRequest(BaseModel):
     text: str = Field(..., min_length=5, description="El texto crudo del requerimiento")
@@ -31,57 +43,213 @@ class ClassificationResponse(BaseModel):
     confidence: float
     model_version: str
 
-# --- Endpoints ---
+class FeedbackRequest(BaseModel):
+    classification_id: str
+    corrected_category: Optional[str] = None
+    is_correct: Optional[bool] = None
+    notes: Optional[str] = None
+
+# --- Endpoints de Health ---
 
 @app.get("/health", status_code=status.HTTP_200_OK)
 def health_check():
-    """Health check simple para Kubernetes/Load Balancers"""
-    return {"status": "ok", "version": "0.1.0-alpha"}
+    """Health check para Kubernetes/Load Balancers"""
+    return {"status": "ok", "version": "0.2.0-mvp", "component": "api"}
+
+# --- Endpoints de Clasificación ---
 
 @app.post(
-    "/classify", 
+    "/classify",
     response_model=ClassificationResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Clasificar un nuevo requerimiento"
 )
-def classify_endpoint(req_dto: RequirementRequest):
+def classify_endpoint(req_dto: RequirementRequest, db: Session = Depends(get_db)):
     """
-    Recibe un requerimiento de texto, lo procesa con el motor de inferencia activo
-    y guarda el resultado.
+    Recibe un requerimiento de texto, lo procesa con el motor de inferencia
+    híbrido (Reglas + Embeddings) y guarda el resultado en PostgreSQL.
     """
     try:
-        # 1. Adaptación (Mapper: DTO -> Domain)
-        # Nota: Aquí atrapamos errores de validación del dominio (ej. texto vacío)
+        # 1. Bootstrap con sesión actual
+        container = bootstrap(session=db)
+        
+        # 2. Adaptación (DTO -> Domain)
         domain_req = Requirement.create(
-            text=req_dto.text, 
+            text=req_dto.text,
             metadata=req_dto.metadata
         )
         
-        # 2. Delegación (Llamada al Application Service)
+        # 3. Delegación (Use Case)
         result = container.classify_requirement.execute(domain_req)
         
-        # 3. Adaptación (Mapper: Domain -> DTO)
+        # 4. Respuesta
         return ClassificationResponse(
             id=result.requirement_id,
             category=result.category,
-            confidence=result.confidence.value, # Unpack del Value Object
+            confidence=result.confidence.value,
             model_version=result.model_version
         )
 
     except ValueError as e:
-        # Errores de Dominio -> HTTP 400 Bad Request
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except Exception as e:
-        # Errores Inesperados -> HTTP 500 Internal Server Error
-        # En producción, aquí agregaríamos un log.error(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal processing error"
+            detail=f"Classification error: {str(e)}"
         )
+
+# --- Endpoints de Feedback ---
+
+@app.post("/api/feedback", status_code=status.HTTP_200_OK)
+def submit_feedback(feedback: FeedbackRequest, db: Session = Depends(get_db)):
+    """
+    Registra feedback humano sobre una clasificación.
+    Esto permite:
+    - Calcular precisión real
+    - Detectar drift del modelo
+    - Recolectar datos para reentrenamiento
+    """
+    try:
+        container = bootstrap(session=db)
+        container.feedback_repository.save_feedback(
+            classification_id=feedback.classification_id,
+            corrected_category=feedback.corrected_category or "Unknown",
+            is_correct=feedback.is_correct or False,
+            notes=feedback.notes,
+            created_by="web_user"  # En prod, sería el usuario autenticado
+        )
+        return {"status": "ok", "message": "Feedback saved"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+# --- Endpoints del Dashboard (HTML) ---
+
+@app.get("/", response_class=HTMLResponse)
+def dashboard_home(db: Session = Depends(get_db)):
+    """Dashboard principal - últimas clasificaciones y estadísticas"""
+    try:
+        container = bootstrap(session=db)
+        
+        # Obtén últimas clasificaciones
+        recent = db.query(ClassificationModel).order_by(
+            ClassificationModel.created_at.desc()
+        ).limit(20).all()
+        
+        # Estadísticas
+        total = db.query(ClassificationModel).count()
+        low_conf = db.query(ClassificationModel).filter(
+            ClassificationModel.confidence < 0.6
+        ).count()
+        
+        avg_conf_result = db.query(func.avg(ClassificationModel.confidence)).scalar() or 0.75
+        avg_conf = float(avg_conf_result) if avg_conf_result else 0.75
+        
+        accuracy = container.feedback_repository.calculate_accuracy()
+        
+        stats = {
+            "total_processed": total,
+            "low_confidence_count": low_conf,
+            "avg_confidence": avg_conf,
+            "accuracy": accuracy
+        }
+        
+        template = get_template("index.html")
+        return template.render(
+            stats=stats,
+            recent_classifications=[{
+                "id": r.id,
+                "text": r.requirement.text,
+                "category": r.category,
+                "confidence": r.confidence,
+                "feedback": r.feedback
+            } for r in recent]
+        )
+    except Exception as e:
+        return f"<h1>Error en Dashboard</h1><p>{str(e)}</p>"
+
+@app.get("/review", response_class=HTMLResponse)
+def dashboard_review(db: Session = Depends(get_db)):
+    """Dashboard de revisión - clasificaciones de baja confianza"""
+    try:
+        # Obtén items de baja confianza
+        low_conf_items = db.query(ClassificationModel).filter(
+            ClassificationModel.confidence < 0.6
+        ).order_by(
+            ClassificationModel.created_at.desc()
+        ).limit(50).all()
+        
+        template = get_template("review.html")
+        return template.render(
+            low_confidence_items=[{
+                "id": item.id,
+                "text": item.requirement.text,
+                "category": item.category,
+                "confidence": item.confidence
+            } for item in low_conf_items]
+        )
+    except Exception as e:
+        return f"<h1>Error</h1><p>{str(e)}</p>"
+
+@app.get("/metrics", response_class=HTMLResponse)
+def dashboard_metrics(db: Session = Depends(get_db)):
+    """Dashboard de métricas - precisión, distribución, drift"""
+    try:
+        # Estadísticas generales
+        total = db.query(ClassificationModel).count()
+        
+        container = bootstrap(session=db)
+        accuracy = container.feedback_repository.calculate_accuracy()
+        
+        # Distribución por categoría
+        category_dist = db.query(
+            ClassificationModel.category,
+            func.count(ClassificationModel.id)
+        ).group_by(ClassificationModel.category).all()
+        
+        category_distribution = {cat: count for cat, count in category_dist}
+        
+        # Distribución de confianza (histogramas)
+        confidence_ranges = {
+            "0-20%": db.query(ClassificationModel).filter(ClassificationModel.confidence < 0.2).count(),
+            "20-40%": db.query(ClassificationModel).filter(
+                (ClassificationModel.confidence >= 0.2) & (ClassificationModel.confidence < 0.4)
+            ).count(),
+            "40-60%": db.query(ClassificationModel).filter(
+                (ClassificationModel.confidence >= 0.4) & (ClassificationModel.confidence < 0.6)
+            ).count(),
+            "60-80%": db.query(ClassificationModel).filter(
+                (ClassificationModel.confidence >= 0.6) & (ClassificationModel.confidence < 0.8)
+            ).count(),
+            "80-100%": db.query(ClassificationModel).filter(ClassificationModel.confidence >= 0.8).count(),
+        }
+        
+        total_feedback = db.query(FeedbackModel).count()
+        avg_conf_result = db.query(func.avg(ClassificationModel.confidence)).scalar() or 0.75
+        avg_conf = float(avg_conf_result) if avg_conf_result else 0.75
+        
+        stats = {
+            "total_processed": total,
+            "total_feedback": total_feedback,
+            "accuracy": accuracy,
+            "avg_confidence": avg_conf
+        }
+        
+        template = get_template("metrics.html")
+        return template.render(
+            stats=stats,
+            category_distribution=category_distribution,
+            confidence_distribution=confidence_ranges
+        )
+    except Exception as e:
+        return f"<h1>Error</h1><p>{str(e)}</p>"
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+

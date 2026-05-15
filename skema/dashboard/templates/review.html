@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>👁️ Revisión de Clasificaciones de Baja Confianza</h2>
+    <p style="color: #666; margin-bottom: 15px;">
+        Estos tickets no clasificaron con suficiente confianza. Tu revisión ayuda al sistema a mejorar.
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>Ticket</th>
+                <th>Propuesta</th>
+                <th>Confianza</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if low_confidence_items %}
+            {% for item in low_confidence_items %}
+            <tr>
+                <td>{{ item.text }}</td>
+                <td><strong>{{ item.category }}</strong></td>
+                <td><span class="badge low-confidence">{{ "%.0f" | format(item.confidence * 100) }}%</span></td>
+                <td>
+                    <button class="action-button" onclick="approveFeedback('{{ item.id }}');">✓ Correcta</button>
+                    <button class="action-button secondary" onclick="correctFeedback('{{ item.id }}', '{{ item.category }}');">✎ Corregir</button>
+                </td>
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr>
+                <td colspan="4" style="text-align: center; color: #999; padding: 40px;">
+                    ✓ No hay tickets pendientes de revisión
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal de Corrección -->
+<div id="correct-modal" class="modal">
+    <div class="modal-content">
+        <h2>✎ Corregir Clasificación</h2>
+        <div class="form-group">
+            <label>Categoría Correcta</label>
+            <select id="correct-category">
+                <option value="">Selecciona...</option>
+                <option value="Bug">Bug</option>
+                <option value="Feature">Feature</option>
+                <option value="Documentation">Documentation</option>
+                <option value="Infrastructure">Infrastructure</option>
+                <option value="Performance">Performance</option>
+                <option value="Security">Security</option>
+                <option value="General">General</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>¿Por qué?</label>
+            <textarea id="correct-notes"></textarea>
+        </div>
+        <div class="form-actions">
+            <button class="action-button secondary" onclick="closeModal('correct-modal');">Cancelar</button>
+            <button class="action-button" onclick="submitCorrection();">Guardar Corrección</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentItemId = null;
+    
+    function correctFeedback(itemId, currentCategory) {
+        currentItemId = itemId;
+        document.getElementById('correct-category').value = '';
+        document.getElementById('correct-notes').value = '';
+        openModal('correct-modal');
+    }
+    
+    function approveFeedback(itemId) {
+        fetch('/api/feedback', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                classification_id: itemId,
+                is_correct: true
+            })
+        }).then(r => r.json()).then(data => {
+            alert('Aprobado');
+            location.reload();
+        });
+    }
+    
+    function submitCorrection() {
+        const category = document.getElementById('correct-category').value;
+        if (!category) {
+            alert('Selecciona una categoría');
+            return;
+        }
+        
+        fetch('/api/feedback', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                classification_id: currentItemId,
+                corrected_category: category,
+                is_correct: false,
+                notes: document.getElementById('correct-notes').value
+            })
+        }).then(r => r.json()).then(data => {
+            alert('Corrección guardada');
+            closeModal('correct-modal');
+            location.reload();
+        });
+    }
+</script>
+{% endblock %}

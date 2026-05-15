@@ -1,6 +1,12 @@
 from dataclasses import dataclass
-from skema.adapters.classifiers import DummyClassifierAdapter
-from skema.adapters.storage import InMemoryClassificationRepository
+from sqlalchemy.orm import Session
+from skema.adapters.classifiers import HybridClassifierAdapter
+from skema.infrastructure.repositories import (
+    PostgreSQLRequirementRepository,
+    PostgreSQLClassificationRepository,
+    FeedbackRepository
+)
+from skema.infrastructure.database import SessionLocal
 from skema.core.use_cases import ClassifyRequirementUseCase
 
 @dataclass
@@ -10,32 +16,39 @@ class Container:
     Agrupa todos los casos de uso listos para consumir.
     """
     classify_requirement: ClassifyRequirementUseCase
+    feedback_repository: FeedbackRepository
 
-def bootstrap() -> Container:
+
+def bootstrap(session: Session = None) -> Container:
     """
     Punto Único de Ensamblaje (Composition Root).
     
-    Aquí se toman las decisiones de infraestructura:
-    - ¿Qué base de datos usar? (Memory vs Postgres)
-    - ¿Qué clasificador usar? (Dummy vs OpenAI)
+    Decisiones de infraestructura:
+    - Base de datos: PostgreSQL (con fallback a SQLite si no está disponible)
+    - Clasificador: HybridClassifier (Reglas + Embeddings)
+    - Persistencia: SQLAlchemy ORM
     
     Retorna un contenedor con la aplicación totalmente conexionada.
     """
     
+    # Si no se proporciona sesión, usa la configurada en database.py
+    if session is None:
+        session = SessionLocal()
+    
     # 1. Infrastructure Layer (Adapters)
-    # Podríamos leer variables de entorno aquí para decidir qué adaptador usar
-    # ej: if os.getenv("DB_TYPE") == "postgres": ...
-    repository = InMemoryClassificationRepository()
-    classifier = DummyClassifierAdapter()
-
+    requirement_repository = PostgreSQLRequirementRepository(session)
+    classification_repository = PostgreSQLClassificationRepository(session)
+    feedback_repository = FeedbackRepository(session)
+    classifier = HybridClassifierAdapter()  # Híbrido: Reglas + Embeddings
+    
     # 2. Application Layer (Use Cases)
-    # Inyección de dependencias pura
     classify_use_case = ClassifyRequirementUseCase(
         classifier=classifier, 
-        repository=repository
+        repository=classification_repository
     )
-
+    
     # 3. Retornar contenedor
     return Container(
-        classify_requirement=classify_use_case
+        classify_requirement=classify_use_case,
+        feedback_repository=feedback_repository
     )
