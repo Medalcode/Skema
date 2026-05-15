@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid">
+    <div class="card">
+        <div class="metric-label">Total Procesado</div>
+        <div class="metric">{{ stats.total_processed }}</div>
+    </div>
+    
+    <div class="card">
+        <div class="metric-label">Feedback Capturado</div>
+        <div class="metric">{{ stats.total_feedback }}</div>
+    </div>
+    
+    <div class="card">
+        <div class="metric-label">Precisión Real</div>
+        <div class="metric" class="{% if stats.accuracy >= 0.85 %}status-good{% elif stats.accuracy >= 0.70 %}status-warning{% else %}status-critical{% endif %}">
+            {{ "%.1f" | format(stats.accuracy * 100) }}%
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="metric-label">Confianza Promedio</div>
+        <div class="metric">{{ "%.2f" | format(stats.avg_confidence) }}</div>
+    </div>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <h2>📊 Clasificaciones por Categoría</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Categoría</th>
+                    <th>Cantidad</th>
+                    <th>%</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category, count in category_distribution.items() %}
+                <tr>
+                    <td><strong>{{ category }}</strong></td>
+                    <td>{{ count }}</td>
+                    <td>{{ "%.1f" | format((count / stats.total_processed) * 100) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="card">
+        <h2>🎯 Confianza (Histograma)</h2>
+        <p style="color: #999; font-size: 12px; margin-bottom: 10px;">
+            Distribución de niveles de confianza
+        </p>
+        {% for range_label, count in confidence_distribution.items() %}
+        <div style="margin-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span>{{ range_label }}</span>
+                <span style="font-weight: bold;">{{ count }}</span>
+            </div>
+            <div style="background: #f0f0f0; height: 20px; border-radius: 4px; overflow: hidden;">
+                <div style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: {{ (count / stats.total_processed) * 100 }}%; transition: width 0.3s;"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card">
+    <h2>📈 Evolución de Precisión</h2>
+    <p style="color: #999; margin-bottom: 15px;">
+        Últimos 30 días (cuando se dispongan datos históricos)
+    </p>
+    <p style="text-align: center; color: #ccc; padding: 40px;">
+        Gráfico histórico disponible pronto...
+    </p>
+</div>
+{% endblock %}

@@ -1,6 +1,6 @@
 from typing import Optional, Dict
-from skema.core.ports.interfaces import ClassifierPort, ClassificationRepositoryPort
-from skema.core.domain.models import Requirement, ClassificationResult, ConfidenceScore
+from skema.core.interfaces import ClassifierPort, ClassificationRepositoryPort
+from skema.core.models import Requirement, ClassificationResult, ConfidenceScore
 
 # --- FAKES para Testing Unitario Estricto ---
 # A diferencia de un Dummy/Mock, un Fake tiene implementación funcional pero simplificada.
@@ -33,7 +33,7 @@ class FakeRepository(ClassificationRepositoryPort):
 # --- TESTS ---
 
 import unittest
-from skema.core.application.use_cases import ClassifyRequirementUseCase
+from skema.core.use_cases import ClassifyRequirementUseCase
 
 class TestClassifyUseCase(unittest.TestCase):
     

@@ -1,6 +1,6 @@
 import unittest
 from datetime import datetime
-from skema.core.domain.models import Requirement, ConfidenceScore
+from skema.core.models import Requirement, ConfidenceScore
 
 class TestDomainModels(unittest.TestCase):
     

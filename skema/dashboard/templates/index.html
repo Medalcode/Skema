@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid">
+    <div class="card">
+        <div class="metric-label">Tickets Procesados</div>
+        <div class="metric">{{ stats.total_processed }}</div>
+    </div>
+    
+    <div class="card">
+        <div class="metric-label">Precisión (Feedback)</div>
+        <div class="metric">{{ "%.1f" | format(stats.accuracy * 100) }}%</div>
+    </div>
+    
+    <div class="card">
+        <div class="metric-label">Confianza Promedio</div>
+        <div class="metric">{{ "%.2f" | format(stats.avg_confidence) }}</div>
+    </div>
+    
+    <div class="card">
+        <div class="metric-label">Requieren Revisión</div>
+        <div class="metric">{{ stats.low_confidence_count }}</div>
+        <small style="color: #999;">Confianza &lt; 60%</small>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📋 Últimas Clasificaciones</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Ticket</th>
+                <th>Categoría</th>
+                <th>Confianza</th>
+                <th>Estado</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in recent_classifications %}
+            <tr>
+                <td>{{ item.text[:50] }}...</td>
+                <td><strong>{{ item.category }}</strong></td>
+                <td>
+                    {% if item.confidence >= 0.85 %}
+                    <span class="badge high-confidence">{{ "%.0f" | format(item.confidence * 100) }}%</span>
+                    {% elif item.confidence >= 0.60 %}
+                    <span class="badge" style="background: #fef3cd; color: #856404;">{{ "%.0f" | format(item.confidence * 100) }}%</span>
+                    {% else %}
+                    <span class="badge low-confidence">{{ "%.0f" | format(item.confidence * 100) }}%</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.feedback %}
+                    <span class="status-good">✓ Revisado</span>
+                    {% else %}
+                    {% if item.confidence < 0.60 %}
+                    <span class="status-critical">⚠ Revisar</span>
+                    {% else %}
+                    <span class="status-good">✓ OK</span>
+                    {% endif %}
+                    {% endif %}
+                </td>
+                <td>
+                    <button class="action-button" onclick="openModal('feedback-modal');">Feedback</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal de Feedback -->
+<div id="feedback-modal" class="modal">
+    <div class="modal-content">
+        <h2>📝 Proporcionar Feedback</h2>
+        <div class="form-group">
+            <label>¿Cuál es la categoría correcta?</label>
+            <select id="feedback-category">
+                <option value="Bug">Bug</option>
+                <option value="Feature">Feature</option>
+                <option value="Documentation">Documentation</option>
+                <option value="Infrastructure">Infrastructure</option>
+                <option value="Performance">Performance</option>
+                <option value="Security">Security</option>
+                <option value="General">General</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="feedback-correct"> La clasificación automática era correcta
+            </label>
+        </div>
+        <div class="form-group">
+            <label>Notas (opcional)</label>
+            <textarea id="feedback-notes" placeholder="¿Por qué?"></textarea>
+        </div>
+        <div class="form-actions">
+            <button class="action-button secondary" onclick="closeModal('feedback-modal');">Cancelar</button>
+            <button class="action-button" onclick="submitFeedback();">Guardar Feedback</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
