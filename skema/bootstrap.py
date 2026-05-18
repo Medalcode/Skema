@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from sqlalchemy.orm import Session
-from skema.adapters.classifiers import HybridClassifierAdapter
 from skema.infrastructure.repositories import (
     PostgreSQLRequirementRepository,
     PostgreSQLClassificationRepository,
@@ -39,6 +38,7 @@ def bootstrap(session: Session = None) -> Container:
     requirement_repository = PostgreSQLRequirementRepository(session)
     classification_repository = PostgreSQLClassificationRepository(session)
     feedback_repository = FeedbackRepository(session)
+    from skema.adapters.classifiers import HybridClassifierAdapter
     classifier = HybridClassifierAdapter()  # Híbrido: Reglas + Embeddings
     
     # 2. Application Layer (Use Cases)

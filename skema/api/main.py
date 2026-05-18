@@ -1,5 +1,6 @@
 # main.py - API REST con Dashboard
 from fastapi import FastAPI, HTTPException, status, Depends
+from fastapi.responses import JSONResponse
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
@@ -25,11 +26,14 @@ app = FastAPI(
     description="Intelligent Requirements Classification Platform with Human Feedback Loop"
 )
 
-# Inicializa base de datos
+# Inicializa base de datos (graceful on serverless)
 @app.on_event("startup")
 def startup():
-    init_db()
-    print("✅ Database initialized")
+    try:
+        init_db()
+        print("✅ Database initialized")
+    except Exception as e:
+        print(f"⚠️ Database init skipped: {e}")
 
 # --- DTOs (Data Transfer Objects) ---
 
@@ -130,7 +134,25 @@ def submit_feedback(feedback: FeedbackRequest, db: Session = Depends(get_db)):
 
 # --- Endpoints del Dashboard (HTML) ---
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=JSONResponse)
+def api_root():
+    """API root with available endpoints"""
+    return {
+        "name": "Skema API",
+        "version": "0.2.0-mvp",
+        "description": "Intelligent Requirements Classification Platform",
+        "endpoints": {
+            "health": "/health",
+            "docs": "/docs",
+            "classify": "POST /classify",
+            "feedback": "POST /api/feedback",
+            "dashboard": "/dashboard",
+            "review": "/review",
+            "metrics": "/metrics"
+        }
+    }
+
+@app.get("/dashboard", response_class=HTMLResponse)
 def dashboard_home(db: Session = Depends(get_db)):
     """Dashboard principal - últimas clasificaciones y estadísticas"""
     try:

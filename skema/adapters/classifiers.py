@@ -3,7 +3,6 @@ from abc import abstractmethod
 from skema.core.interfaces import ClassifierPort
 from skema.core.models import Requirement, ClassificationResult, ConfidenceScore
 import numpy as np
-from sentence_transformers import util
 
 class DummyClassifierAdapter(ClassifierPort):
     """
@@ -192,6 +191,7 @@ class HybridClassifierAdapter(ClassifierPort):
         Retorna (categoría, confianza)
         """
         try:
+            from sentence_transformers import util
             # Embeding del texto del usuario
             text_embedding = self.embedder.encode(text, convert_to_tensor=True)
             
