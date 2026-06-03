@@ -11,13 +11,6 @@ from datetime import datetime
 
 # Imports Limpios (Bootstrap + Domain)
 from skema.core.models import Requirement
-from skema.bootstrap import bootstrap
-from skema.infrastructure.database import init_db, get_db, engine, Base
-from skema.infrastructure.models import (
-    RequirementModel, 
-    ClassificationModel, 
-    FeedbackModel
-)
 from skema.dashboard import get_template
 from skema.core.config import settings
 
@@ -32,7 +25,7 @@ app = FastAPI(
     description="Intelligent Requirements Classification Platform with Human Feedback Loop"
 )
 
-# Inicializa base de datos
+# Inicializa base de datos (graceful on serverless)
 @app.on_event("startup")
 async def startup():
     await init_db()
@@ -42,7 +35,7 @@ async def startup():
 
 class RequirementRequest(BaseModel):
     text: str = Field(..., min_length=5, description="El texto crudo del requerimiento")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Datos contextuales opcionales")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Datos contextuales opcionales")
 
 class ClassificationResponse(BaseModel):
     id: str
@@ -52,9 +45,9 @@ class ClassificationResponse(BaseModel):
 
 class FeedbackRequest(BaseModel):
     classification_id: str
-    corrected_category: Optional[str] = None
-    is_correct: Optional[bool] = None
-    notes: Optional[str] = None
+    corrected_category: str | None = None
+    is_correct: bool | None = None
+    notes: str | None = None
 
 # --- Endpoints de Health ---
 
@@ -159,7 +152,7 @@ async def dashboard_home(db: AsyncSession = Depends(get_db)):
             "avg_confidence": avg_conf,
             "accuracy": accuracy
         }
-        
+
         template = get_template("index.html")
         return template.render(
             stats=stats,
@@ -237,14 +230,14 @@ async def dashboard_metrics(db: AsyncSession = Depends(get_db)):
         avg_res = await db.execute(select(func.avg(ClassificationModel.confidence)))
         avg_conf_result = avg_res.scalar()
         avg_conf = float(avg_conf_result) if avg_conf_result else 0.75
-        
+
         stats = {
             "total_processed": total,
             "total_feedback": total_feedback,
             "accuracy": accuracy,
             "avg_confidence": avg_conf
         }
-        
+
         template = get_template("metrics.html")
         return template.render(
             stats=stats,

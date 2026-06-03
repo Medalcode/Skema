@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Optional
-from skema.core.models import Requirement, ClassificationResult
+
+from skema.core.models import ClassificationResult, Requirement
+
 
 class ClassifierPort(ABC):
     """

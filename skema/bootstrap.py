@@ -8,6 +8,13 @@ from skema.infrastructure.repositories import (
 )
 from skema.infrastructure.database import SessionLocal
 from skema.core.use_cases import ClassifyRequirementUseCase
+from skema.infrastructure.database import SessionLocal
+from skema.infrastructure.repositories import (
+    FeedbackRepository,
+    PostgreSQLClassificationRepository,
+    PostgreSQLRequirementRepository,
+)
+
 
 @dataclass
 class Container:
@@ -46,10 +53,10 @@ def bootstrap(session: AsyncSession = None) -> Container:
     
     # 2. Application Layer (Use Cases)
     classify_use_case = ClassifyRequirementUseCase(
-        classifier=classifier, 
+        classifier=classifier,
         repository=classification_repository
     )
-    
+
     # 3. Retornar contenedor
     return Container(
         classify_requirement=classify_use_case,

@@ -1,9 +1,11 @@
 import unittest
 from datetime import datetime
-from skema.core.models import Requirement, ConfidenceScore
+
+from skema.core.models import ConfidenceScore, Requirement
+
 
 class TestDomainModels(unittest.TestCase):
-    
+
     def test_confidence_score_invariants(self):
         """Value Object integrity checks"""
         # Valid range
@@ -14,7 +16,7 @@ class TestDomainModels(unittest.TestCase):
         # Invalid range (Too high)
         with self.assertRaises(ValueError):
             ConfidenceScore(1.01)
-        
+
         # Invalid range (Negative)
         with self.assertRaises(ValueError):
             ConfidenceScore(-0.01)
@@ -22,7 +24,7 @@ class TestDomainModels(unittest.TestCase):
     def test_requirement_creation(self):
         """Entity factory method validation"""
         req = Requirement.create("  Valid Text  ")
-        
+
         # Check stripping/cleaning logic if any (currently none strict, but good to test)
         self.assertEqual(req.text, "  Valid Text  ")
         self.assertIsInstance(req.timestamp, datetime)
@@ -32,6 +34,6 @@ class TestDomainModels(unittest.TestCase):
         """Invariant: Requirement cannot be empty"""
         with self.assertRaises(ValueError):
             Requirement.create("")
-        
+
         with self.assertRaises(ValueError):
             Requirement.create("   ") # Whitespace only

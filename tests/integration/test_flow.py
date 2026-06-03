@@ -1,11 +1,13 @@
 import unittest
-from skema.core.models import Requirement, ClassificationResult, ConfidenceScore
-from skema.core.use_cases import ClassifyRequirementUseCase
+
 from skema.adapters.classifiers import DummyClassifierAdapter
 from skema.adapters.storage import InMemoryClassificationRepository
+from skema.core.models import ConfidenceScore, Requirement
+from skema.core.use_cases import ClassifyRequirementUseCase
+
 
 class TestHexagonalArchitecture(unittest.TestCase):
-    
+
     def setUp(self):
         self.classifier = DummyClassifierAdapter()
         self.storage = InMemoryClassificationRepository()
@@ -18,14 +20,14 @@ class TestHexagonalArchitecture(unittest.TestCase):
         # 1. Input
         text_input = "System must report errors via PDF"
         req = Requirement.create(text=text_input)
-        
+
         # 2. Execution (The Action)
         result = self.use_case.execute(req)
-        
+
         # 3. Verification
         # Check Result
         self.assertEqual(result.category, "Reporting")
-        
+
         # Check Side Effect (Persistence)
         stored = self.storage.get_by_requirement_id(result.requirement_id)
         self.assertIsNotNone(stored)

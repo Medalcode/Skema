@@ -1,7 +1,8 @@
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, Any, Optional
-import uuid
+from typing import Any
+
 
 @dataclass(frozen=True, order=True)
 class ConfidenceScore:
@@ -27,10 +28,10 @@ class Requirement:
     id: str
     text: str
     timestamp: datetime = field(default_factory=datetime.now)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def create(cls, text: str, metadata: Optional[Dict[str, Any]] = None) -> 'Requirement':
+    def create(cls, text: str, metadata: dict[str, Any] | None = None) -> 'Requirement':
         if not text.strip():
             raise ValueError("Requirement text cannot be empty")
         return cls(

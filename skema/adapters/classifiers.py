@@ -1,5 +1,5 @@
-from typing import Dict, List, Tuple
-from abc import abstractmethod
+
+
 from skema.core.interfaces import ClassifierPort
 from skema.core.models import Requirement, ClassificationResult, ConfidenceScore
 import numpy as np
@@ -49,7 +49,7 @@ class DummyClassifierAdapter(ClassifierPort):
 class HybridClassifierAdapter(ClassifierPort):
     CATEGORIES = [
         "Bug",
-        "Feature", 
+        "Feature",
         "Documentation",
         "Infrastructure",
         "Performance",
@@ -92,7 +92,7 @@ class HybridClassifierAdapter(ClassifierPort):
             "implement rate limiting"
         ]
     }
-    
+
     def __init__(self):
         try:
             from sentence_transformers import SentenceTransformer
@@ -103,7 +103,7 @@ class HybridClassifierAdapter(ClassifierPort):
             logger.warning(f"⚠️ Embeddings not available, using keyword-only mode. Error: {e}")
             self.embedder = None
             self.semantic_enabled = False
-    
+
     def classify(self, req: Requirement) -> ClassificationResult:
         text = req.text.lower()
         
@@ -127,7 +127,7 @@ class HybridClassifierAdapter(ClassifierPort):
         
         category = keyword_result[0] if keyword_result[1] > 0.3 else "General"
         confidence = max(keyword_result[1], 0.3)
-        
+
         return ClassificationResult(
             requirement_id=req.id,
             category=category,
@@ -137,25 +137,25 @@ class HybridClassifierAdapter(ClassifierPort):
     
     def _classify_by_keywords(self, text: str) -> Tuple[str, float]:
         scores = {cat: 0 for cat in self.CATEGORIES}
-        
+
         for category, keywords in self.KEYWORD_RULES.items():
             for keyword in keywords:
                 if keyword in text:
                     scores[category] += 1
-        
+
         if not any(scores.values()):
             return ("General", 0.3)
-        
+
         best_category = max(scores, key=scores.get)
         match_count = scores[best_category]
         confidence = min(0.75 + (match_count * 0.1), 0.95)
-        
+
         return (best_category, confidence)
     
     def _classify_by_embeddings(self, text: str) -> Tuple[str, float]:
         try:
             text_embedding = self.embedder.encode(text, convert_to_tensor=True)
-            
+
             max_similarity = 0.0
             best_category = "General"
             
@@ -163,14 +163,14 @@ class HybridClassifierAdapter(ClassifierPort):
                 template_embeddings = self.embedder.encode(templates, convert_to_tensor=True)
                 similarities = util.pytorch_cos_sim(text_embedding, template_embeddings)[0]
                 avg_similarity = float(similarities.mean())
-                
+
                 if avg_similarity > max_similarity:
                     max_similarity = avg_similarity
                     best_category = category
             
             confidence = max(0.4, min(max_similarity, 0.9))
             return (best_category, confidence)
-            
+
         except Exception as e:
             logger.error(f"❌ Embedding error: {e}, falling back to keywords")
             return ("General", 0.3)

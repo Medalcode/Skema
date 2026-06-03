@@ -1,6 +1,8 @@
 from dataclasses import dataclass
-from skema.core.models import Requirement, ClassificationResult
-from skema.core.interfaces import ClassifierPort, ClassificationRepositoryPort
+
+from skema.core.interfaces import ClassificationRepositoryPort, ClassifierPort
+from skema.core.models import ClassificationResult, Requirement
+
 
 @dataclass
 class ClassifyRequirementUseCase:
@@ -17,7 +19,7 @@ class ClassifyRequirementUseCase:
     async def execute(self, req: Requirement) -> ClassificationResult:
         # 1. Inferencia: Delegamos la "inteligencia" al puerto del clasificador
         result = self.classifier.classify(req)
-        
+
         # 2. Persistencia: Aseguramos que el resultado no se pierda
         await self.repository.save(result)
         
