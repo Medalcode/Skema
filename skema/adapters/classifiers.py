@@ -4,15 +4,15 @@ from skema.core.interfaces import ClassifierPort
 from skema.core.models import Requirement, ClassificationResult, ConfidenceScore
 import numpy as np
 from sentence_transformers import util
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DummyClassifierAdapter(ClassifierPort):
     """
     Adaptador 'Rule-Based' simple.
-    Implementa ClassifierPort usando reglas de palabras clave.
-    Es un reemplazo directo (Drop-in replacement) para modelos de ML complejos.
     """
     
-    # Reglas simples: keyword -> categoría
     RULES: Dict[str, str] = {
         "login": "Authentication",
         "password": "Authentication",
@@ -30,13 +30,12 @@ class DummyClassifierAdapter(ClassifierPort):
     def classify(self, req: Requirement) -> ClassificationResult:
         text = req.text.lower()
         category = "General"
-        confidence_value = 0.30 # Default low confidence
+        confidence_value = 0.30
 
-        # Lógica de inferencia heurística
         for keyword, mapped_category in self.RULES.items():
             if keyword in text:
                 category = mapped_category
-                confidence_value = 0.90 # High confidence on keyword match
+                confidence_value = 0.90
                 break 
 
         return ClassificationResult(
@@ -48,26 +47,6 @@ class DummyClassifierAdapter(ClassifierPort):
 
 
 class HybridClassifierAdapter(ClassifierPort):
-    """
-    Clasificador Híbrido: Reglas + Embeddings + Confidence Scoring.
-    
-    Estrategia:
-    1. Aplica reglas keyword-based (rápido, determinístico)
-    2. Si confianza baja, usa embeddings para búsqueda semántica
-    3. Retorna score de confianza real
-    4. Si no es confiable, requiere revisión humana
-    
-    Modelo de categorías:
-    - Bug: Defectos, errores, crashes
-    - Feature: Nuevas funcionalidades, mejoras
-    - Documentation: Docs, wikis, manuales
-    - Infrastructure: DevOps, deployment, CI/CD
-    - Performance: Optimización, escalabilidad
-    - Security: Vulnerabilidades, acceso
-    - General: Otros
-    """
-    
-    # Categorías disponibles
     CATEGORIES = [
         "Bug",
         "Feature", 
@@ -78,7 +57,6 @@ class HybridClassifierAdapter(ClassifierPort):
         "General"
     ]
     
-    # Palabras clave por categoría (confidence > 0.85)
     KEYWORD_RULES: Dict[str, List[str]] = {
         "Bug": ["bug", "error", "crash", "broken", "not working", "issue", "defect", "fail"],
         "Feature": ["add", "implement", "create", "new feature", "enhancement", "support", "allow"],
@@ -88,7 +66,6 @@ class HybridClassifierAdapter(ClassifierPort):
         "Security": ["security", "vulnerability", "cve", "auth", "token", "password", "encrypt", "exploit"],
     }
     
-    # Términos semánticamente similares (descritos por ejemplos)
     SEMANTIC_TEMPLATES: Dict[str, List[str]] = {
         "Bug": [
             "the application crashes when I click submit",
@@ -117,23 +94,19 @@ class HybridClassifierAdapter(ClassifierPort):
     }
     
     def __init__(self):
-        """Inicializa embeddings (lazy loading si es posible)"""
         try:
             from sentence_transformers import SentenceTransformer
-            self.embedder = SentenceTransformer('all-MiniLM-L6-v2')  # Lightweight, fast
+            self.embedder = SentenceTransformer('all-MiniLM-L6-v2')
             self.semantic_enabled = True
-        except Exception:
-            print("⚠️  Embeddings not available, using keyword-only mode")
+            logger.info("✅ Embeddings model loaded successfully")
+        except Exception as e:
+            logger.warning(f"⚠️ Embeddings not available, using keyword-only mode. Error: {e}")
             self.embedder = None
             self.semantic_enabled = False
     
     def classify(self, req: Requirement) -> ClassificationResult:
-        """
-        Ejecuta clasificación híbrida con confianza real.
-        """
         text = req.text.lower()
         
-        # 1. Intenta keywords primero
         keyword_result = self._classify_by_keywords(text)
         if keyword_result[1] > 0.85:
             return ClassificationResult(
@@ -143,7 +116,6 @@ class HybridClassifierAdapter(ClassifierPort):
                 model_version="HybridClassifier-v1"
             )
         
-        # 2. Si confianza baja, usa embeddings
         if self.semantic_enabled:
             semantic_result = self._classify_by_embeddings(req.text)
             return ClassificationResult(
@@ -153,7 +125,6 @@ class HybridClassifierAdapter(ClassifierPort):
                 model_version="HybridClassifier-v1-Semantic"
             )
         
-        # 3. Fallback a keyword result o General
         category = keyword_result[0] if keyword_result[1] > 0.3 else "General"
         confidence = max(keyword_result[1], 0.3)
         
@@ -165,10 +136,6 @@ class HybridClassifierAdapter(ClassifierPort):
         )
     
     def _classify_by_keywords(self, text: str) -> Tuple[str, float]:
-        """
-        Busca palabras clave en el texto.
-        Retorna (categoría, confianza)
-        """
         scores = {cat: 0 for cat in self.CATEGORIES}
         
         for category, keywords in self.KEYWORD_RULES.items():
@@ -180,25 +147,18 @@ class HybridClassifierAdapter(ClassifierPort):
             return ("General", 0.3)
         
         best_category = max(scores, key=scores.get)
-        # Normaliza confianza: 1 match=0.75, 2=0.85, 3+=0.95
         match_count = scores[best_category]
         confidence = min(0.75 + (match_count * 0.1), 0.95)
         
         return (best_category, confidence)
     
     def _classify_by_embeddings(self, text: str) -> Tuple[str, float]:
-        """
-        Usa embeddings para encontrar la categoría más similar.
-        Retorna (categoría, confianza)
-        """
         try:
-            # Embeding del texto del usuario
             text_embedding = self.embedder.encode(text, convert_to_tensor=True)
             
             max_similarity = 0.0
             best_category = "General"
             
-            # Compara contra cada categoría
             for category, templates in self.SEMANTIC_TEMPLATES.items():
                 template_embeddings = self.embedder.encode(templates, convert_to_tensor=True)
                 similarities = util.pytorch_cos_sim(text_embedding, template_embeddings)[0]
@@ -208,10 +168,9 @@ class HybridClassifierAdapter(ClassifierPort):
                     max_similarity = avg_similarity
                     best_category = category
             
-            # Usa similitud como confianza (0.4 a 0.9)
             confidence = max(0.4, min(max_similarity, 0.9))
             return (best_category, confidence)
             
         except Exception as e:
-            print(f"❌ Embedding error: {e}, falling back to keywords")
+            logger.error(f"❌ Embedding error: {e}, falling back to keywords")
             return ("General", 0.3)

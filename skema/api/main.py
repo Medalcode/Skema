@@ -1,10 +1,12 @@
 # main.py - API REST con Dashboard
+import logging
 from fastapi import FastAPI, HTTPException, status, Depends
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func
+from sqlalchemy.future import select
 from datetime import datetime
 
 # Imports Limpios (Bootstrap + Domain)
@@ -17,19 +19,24 @@ from skema.infrastructure.models import (
     FeedbackModel
 )
 from skema.dashboard import get_template
+from skema.core.config import settings
+
+# --- Logging ---
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 # --- Configuración Inicial ---
 app = FastAPI(
     title="Skema API",
-    version="0.2.0-mvp",
+    version="0.3.0-async",
     description="Intelligent Requirements Classification Platform with Human Feedback Loop"
 )
 
 # Inicializa base de datos
 @app.on_event("startup")
-def startup():
-    init_db()
-    print("✅ Database initialized")
+async def startup():
+    await init_db()
+    logger.info("✅ Database initialized")
 
 # --- DTOs (Data Transfer Objects) ---
 
@@ -52,9 +59,9 @@ class FeedbackRequest(BaseModel):
 # --- Endpoints de Health ---
 
 @app.get("/health", status_code=status.HTTP_200_OK)
-def health_check():
+async def health_check():
     """Health check para Kubernetes/Load Balancers"""
-    return {"status": "ok", "version": "0.2.0-mvp", "component": "api"}
+    return {"status": "ok", "version": "0.3.0-async", "component": "api"}
 
 # --- Endpoints de Clasificación ---
 
@@ -64,25 +71,21 @@ def health_check():
     status_code=status.HTTP_201_CREATED,
     summary="Clasificar un nuevo requerimiento"
 )
-def classify_endpoint(req_dto: RequirementRequest, db: Session = Depends(get_db)):
+async def classify_endpoint(req_dto: RequirementRequest, db: AsyncSession = Depends(get_db)):
     """
     Recibe un requerimiento de texto, lo procesa con el motor de inferencia
     híbrido (Reglas + Embeddings) y guarda el resultado en PostgreSQL.
     """
     try:
-        # 1. Bootstrap con sesión actual
         container = bootstrap(session=db)
         
-        # 2. Adaptación (DTO -> Domain)
         domain_req = Requirement.create(
             text=req_dto.text,
             metadata=req_dto.metadata
         )
         
-        # 3. Delegación (Use Case)
-        result = container.classify_requirement.execute(domain_req)
+        result = await container.classify_requirement.execute(domain_req)
         
-        # 4. Respuesta
         return ClassificationResponse(
             id=result.requirement_id,
             category=result.category,
@@ -91,11 +94,13 @@ def classify_endpoint(req_dto: RequirementRequest, db: Session = Depends(get_db)
         )
 
     except ValueError as e:
+        logger.error(f"Validation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except Exception as e:
+        logger.error(f"Classification error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Classification error: {str(e)}"
@@ -104,25 +109,19 @@ def classify_endpoint(req_dto: RequirementRequest, db: Session = Depends(get_db)
 # --- Endpoints de Feedback ---
 
 @app.post("/api/feedback", status_code=status.HTTP_200_OK)
-def submit_feedback(feedback: FeedbackRequest, db: Session = Depends(get_db)):
-    """
-    Registra feedback humano sobre una clasificación.
-    Esto permite:
-    - Calcular precisión real
-    - Detectar drift del modelo
-    - Recolectar datos para reentrenamiento
-    """
+async def submit_feedback(feedback: FeedbackRequest, db: AsyncSession = Depends(get_db)):
     try:
         container = bootstrap(session=db)
-        container.feedback_repository.save_feedback(
+        await container.feedback_repository.save_feedback(
             classification_id=feedback.classification_id,
             corrected_category=feedback.corrected_category or "Unknown",
             is_correct=feedback.is_correct or False,
             notes=feedback.notes,
-            created_by="web_user"  # En prod, sería el usuario autenticado
+            created_by="web_user"
         )
         return {"status": "ok", "message": "Feedback saved"}
     except Exception as e:
+        logger.error(f"Feedback error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
@@ -131,26 +130,28 @@ def submit_feedback(feedback: FeedbackRequest, db: Session = Depends(get_db)):
 # --- Endpoints del Dashboard (HTML) ---
 
 @app.get("/", response_class=HTMLResponse)
-def dashboard_home(db: Session = Depends(get_db)):
-    """Dashboard principal - últimas clasificaciones y estadísticas"""
+async def dashboard_home(db: AsyncSession = Depends(get_db)):
     try:
         container = bootstrap(session=db)
         
-        # Obtén últimas clasificaciones
-        recent = db.query(ClassificationModel).order_by(
-            ClassificationModel.created_at.desc()
-        ).limit(20).all()
+        result = await db.execute(
+            select(ClassificationModel).order_by(ClassificationModel.created_at.desc()).limit(20)
+        )
+        recent = result.scalars().all()
         
-        # Estadísticas
-        total = db.query(ClassificationModel).count()
-        low_conf = db.query(ClassificationModel).filter(
-            ClassificationModel.confidence < 0.6
-        ).count()
+        total_res = await db.execute(select(func.count(ClassificationModel.id)))
+        total = total_res.scalar()
         
-        avg_conf_result = db.query(func.avg(ClassificationModel.confidence)).scalar() or 0.75
+        low_conf_res = await db.execute(
+            select(func.count(ClassificationModel.id)).filter(ClassificationModel.confidence < 0.6)
+        )
+        low_conf = low_conf_res.scalar()
+        
+        avg_conf_res = await db.execute(select(func.avg(ClassificationModel.confidence)))
+        avg_conf_result = avg_conf_res.scalar()
         avg_conf = float(avg_conf_result) if avg_conf_result else 0.75
         
-        accuracy = container.feedback_repository.calculate_accuracy()
+        accuracy = await container.feedback_repository.calculate_accuracy()
         
         stats = {
             "total_processed": total,
@@ -171,18 +172,18 @@ def dashboard_home(db: Session = Depends(get_db)):
             } for r in recent]
         )
     except Exception as e:
+        logger.error(f"Dashboard error: {e}", exc_info=True)
         return f"<h1>Error en Dashboard</h1><p>{str(e)}</p>"
 
 @app.get("/review", response_class=HTMLResponse)
-def dashboard_review(db: Session = Depends(get_db)):
-    """Dashboard de revisión - clasificaciones de baja confianza"""
+async def dashboard_review(db: AsyncSession = Depends(get_db)):
     try:
-        # Obtén items de baja confianza
-        low_conf_items = db.query(ClassificationModel).filter(
-            ClassificationModel.confidence < 0.6
-        ).order_by(
-            ClassificationModel.created_at.desc()
-        ).limit(50).all()
+        result = await db.execute(
+            select(ClassificationModel).filter(
+                ClassificationModel.confidence < 0.6
+            ).order_by(ClassificationModel.created_at.desc()).limit(50)
+        )
+        low_conf_items = result.scalars().all()
         
         template = get_template("review.html")
         return template.render(
@@ -194,43 +195,47 @@ def dashboard_review(db: Session = Depends(get_db)):
             } for item in low_conf_items]
         )
     except Exception as e:
+        logger.error(f"Dashboard error: {e}", exc_info=True)
         return f"<h1>Error</h1><p>{str(e)}</p>"
 
 @app.get("/metrics", response_class=HTMLResponse)
-def dashboard_metrics(db: Session = Depends(get_db)):
-    """Dashboard de métricas - precisión, distribución, drift"""
+async def dashboard_metrics(db: AsyncSession = Depends(get_db)):
     try:
-        # Estadísticas generales
-        total = db.query(ClassificationModel).count()
+        total_res = await db.execute(select(func.count(ClassificationModel.id)))
+        total = total_res.scalar()
         
         container = bootstrap(session=db)
-        accuracy = container.feedback_repository.calculate_accuracy()
+        accuracy = await container.feedback_repository.calculate_accuracy()
         
-        # Distribución por categoría
-        category_dist = db.query(
-            ClassificationModel.category,
-            func.count(ClassificationModel.id)
-        ).group_by(ClassificationModel.category).all()
-        
+        cat_res = await db.execute(
+            select(ClassificationModel.category, func.count(ClassificationModel.id))
+            .group_by(ClassificationModel.category)
+        )
+        category_dist = cat_res.all()
         category_distribution = {cat: count for cat, count in category_dist}
         
-        # Distribución de confianza (histogramas)
+        async def count_range(min_val, max_val):
+            q = select(func.count(ClassificationModel.id))
+            if max_val is not None:
+                q = q.filter((ClassificationModel.confidence >= min_val) & (ClassificationModel.confidence < max_val))
+            else:
+                q = q.filter(ClassificationModel.confidence >= min_val)
+            r = await db.execute(q)
+            return r.scalar()
+        
         confidence_ranges = {
-            "0-20%": db.query(ClassificationModel).filter(ClassificationModel.confidence < 0.2).count(),
-            "20-40%": db.query(ClassificationModel).filter(
-                (ClassificationModel.confidence >= 0.2) & (ClassificationModel.confidence < 0.4)
-            ).count(),
-            "40-60%": db.query(ClassificationModel).filter(
-                (ClassificationModel.confidence >= 0.4) & (ClassificationModel.confidence < 0.6)
-            ).count(),
-            "60-80%": db.query(ClassificationModel).filter(
-                (ClassificationModel.confidence >= 0.6) & (ClassificationModel.confidence < 0.8)
-            ).count(),
-            "80-100%": db.query(ClassificationModel).filter(ClassificationModel.confidence >= 0.8).count(),
+            "0-20%": await count_range(0.0, 0.2),
+            "20-40%": await count_range(0.2, 0.4),
+            "40-60%": await count_range(0.4, 0.6),
+            "60-80%": await count_range(0.6, 0.8),
+            "80-100%": await count_range(0.8, None),
         }
         
-        total_feedback = db.query(FeedbackModel).count()
-        avg_conf_result = db.query(func.avg(ClassificationModel.confidence)).scalar() or 0.75
+        tf_res = await db.execute(select(func.count(FeedbackModel.id)))
+        total_feedback = tf_res.scalar()
+        
+        avg_res = await db.execute(select(func.avg(ClassificationModel.confidence)))
+        avg_conf_result = avg_res.scalar()
         avg_conf = float(avg_conf_result) if avg_conf_result else 0.75
         
         stats = {
@@ -247,9 +252,10 @@ def dashboard_metrics(db: Session = Depends(get_db)):
             confidence_distribution=confidence_ranges
         )
     except Exception as e:
+        logger.error(f"Dashboard error: {e}", exc_info=True)
         return f"<h1>Error</h1><p>{str(e)}</p>"
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=settings.API_PORT)
 

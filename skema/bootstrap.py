@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from skema.adapters.classifiers import HybridClassifierAdapter
 from skema.infrastructure.repositories import (
     PostgreSQLRequirementRepository,
@@ -19,27 +19,30 @@ class Container:
     feedback_repository: FeedbackRepository
 
 
-def bootstrap(session: Session = None) -> Container:
+# Singleton para el clasificador (evita recargar el modelo de IA en cada petición)
+_classifier_instance = None
+
+def get_classifier() -> HybridClassifierAdapter:
+    global _classifier_instance
+    if _classifier_instance is None:
+        _classifier_instance = HybridClassifierAdapter()
+    return _classifier_instance
+
+
+def bootstrap(session: AsyncSession = None) -> Container:
     """
     Punto Único de Ensamblaje (Composition Root).
     
-    Decisiones de infraestructura:
-    - Base de datos: PostgreSQL (con fallback a SQLite si no está disponible)
-    - Clasificador: HybridClassifier (Reglas + Embeddings)
-    - Persistencia: SQLAlchemy ORM
-    
     Retorna un contenedor con la aplicación totalmente conexionada.
     """
-    
-    # Si no se proporciona sesión, usa la configurada en database.py
-    if session is None:
-        session = SessionLocal()
     
     # 1. Infrastructure Layer (Adapters)
     requirement_repository = PostgreSQLRequirementRepository(session)
     classification_repository = PostgreSQLClassificationRepository(session)
     feedback_repository = FeedbackRepository(session)
-    classifier = HybridClassifierAdapter()  # Híbrido: Reglas + Embeddings
+    
+    # Usa el Singleton para el clasificador
+    classifier = get_classifier()
     
     # 2. Application Layer (Use Cases)
     classify_use_case = ClassifyRequirementUseCase(

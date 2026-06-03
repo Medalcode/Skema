@@ -18,11 +18,11 @@ class RequirementRepositoryPort(ABC):
     Gestiona la persistencia de los Requerimientos crudos (Input).
     """
     @abstractmethod
-    def save(self, req: Requirement) -> None:
+    async def save(self, req: Requirement) -> None:
         pass
 
     @abstractmethod
-    def get_by_id(self, id: str) -> Optional[Requirement]:
+    async def get_by_id(self, id: str) -> Optional[Requirement]:
         pass
 
 class ClassificationRepositoryPort(ABC):
@@ -31,11 +31,11 @@ class ClassificationRepositoryPort(ABC):
     Gestiona la persistencia de los resultados de clasificación (Output).
     """
     @abstractmethod
-    def save(self, result: ClassificationResult) -> None:
+    async def save(self, result: ClassificationResult) -> None:
         pass
 
     @abstractmethod
-    def get_by_requirement_id(self, req_id: str) -> Optional[ClassificationResult]:
+    async def get_by_requirement_id(self, req_id: str) -> Optional[ClassificationResult]:
         pass
 
 class ProcessorPort(ABC):

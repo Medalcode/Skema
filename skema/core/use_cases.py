@@ -14,12 +14,12 @@ class ClassifyRequirementUseCase:
     classifier: ClassifierPort
     repository: ClassificationRepositoryPort
 
-    def execute(self, req: Requirement) -> ClassificationResult:
+    async def execute(self, req: Requirement) -> ClassificationResult:
         # 1. Inferencia: Delegamos la "inteligencia" al puerto del clasificador
         result = self.classifier.classify(req)
         
         # 2. Persistencia: Aseguramos que el resultado no se pierda
-        self.repository.save(result)
+        await self.repository.save(result)
         
         # 3. Retorno: Devolvemos el resultado para que el presentador (API) lo muestre
         return result
