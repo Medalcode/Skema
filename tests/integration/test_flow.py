@@ -1,4 +1,4 @@
-import unittest
+import pytest
 
 from skema.adapters.classifiers import DummyClassifierAdapter
 from skema.adapters.storage import InMemoryClassificationRepository
@@ -6,36 +6,25 @@ from skema.core.models import ConfidenceScore, Requirement
 from skema.core.use_cases import ClassifyRequirementUseCase
 
 
-class TestHexagonalArchitecture(unittest.TestCase):
+@pytest.fixture
+def use_case():
+    classifier = DummyClassifierAdapter()
+    storage = InMemoryClassificationRepository()
+    return ClassifyRequirementUseCase(classifier, storage)
 
-    def setUp(self):
-        self.classifier = DummyClassifierAdapter()
-        self.storage = InMemoryClassificationRepository()
-        self.use_case = ClassifyRequirementUseCase(self.classifier, self.storage)
 
-    def test_flow_use_case(self):
-        """
-        Verifica el Caso de Uso completo: Recepción -> Clasificación -> Guardado
-        """
-        # 1. Input
-        text_input = "System must report errors via PDF"
-        req = Requirement.create(text=text_input)
+async def test_flow_use_case(use_case):
+    req = Requirement.create(text="System must report errors via PDF")
 
-        # 2. Execution (The Action)
-        result = self.use_case.execute(req)
+    result = await use_case.execute(req)
 
-        # 3. Verification
-        # Check Result
-        self.assertEqual(result.category, "Reporting")
+    assert result.category == "Reporting"
 
-        # Check Side Effect (Persistence)
-        stored = self.storage.get_by_requirement_id(result.requirement_id)
-        self.assertIsNotNone(stored)
-        self.assertEqual(stored.requirement_id, result.requirement_id)
+    stored = await use_case.repository.get_by_requirement_id(result.requirement_id)
+    assert stored is not None
+    assert stored.requirement_id == result.requirement_id
 
-    def test_confidence_score_validation(self):
-        with self.assertRaises(ValueError):
-            ConfidenceScore(1.5)
 
-if __name__ == '__main__':
-    unittest.main()
+def test_confidence_score_validation():
+    with pytest.raises(ValueError):
+        ConfidenceScore(1.5)

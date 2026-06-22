@@ -1,19 +1,15 @@
-
+import asyncio
+import logging
+from functools import lru_cache
 
 from skema.core.interfaces import ClassifierPort
 from skema.core.models import Requirement, ClassificationResult, ConfidenceScore
-import numpy as np
-from sentence_transformers import util
-import logging
 
 logger = logging.getLogger(__name__)
 
+
 class DummyClassifierAdapter(ClassifierPort):
-    """
-    Adaptador 'Rule-Based' simple.
-    """
-    
-    RULES: Dict[str, str] = {
+    RULES: dict[str, str] = {
         "login": "Authentication",
         "password": "Authentication",
         "signin": "Authentication",
@@ -27,7 +23,7 @@ class DummyClassifierAdapter(ClassifierPort):
         "server": "Infrastructure"
     }
 
-    def classify(self, req: Requirement) -> ClassificationResult:
+    async def classify(self, req: Requirement) -> ClassificationResult:
         text = req.text.lower()
         category = "General"
         confidence_value = 0.30
@@ -36,7 +32,7 @@ class DummyClassifierAdapter(ClassifierPort):
             if keyword in text:
                 category = mapped_category
                 confidence_value = 0.90
-                break 
+                break
 
         return ClassificationResult(
             requirement_id=req.id,
@@ -48,16 +44,11 @@ class DummyClassifierAdapter(ClassifierPort):
 
 class HybridClassifierAdapter(ClassifierPort):
     CATEGORIES = [
-        "Bug",
-        "Feature",
-        "Documentation",
-        "Infrastructure",
-        "Performance",
-        "Security",
-        "General"
+        "Bug", "Feature", "Documentation", "Infrastructure",
+        "Performance", "Security", "General"
     ]
-    
-    KEYWORD_RULES: Dict[str, List[str]] = {
+
+    KEYWORD_RULES: dict[str, list[str]] = {
         "Bug": ["bug", "error", "crash", "broken", "not working", "issue", "defect", "fail"],
         "Feature": ["add", "implement", "create", "new feature", "enhancement", "support", "allow"],
         "Documentation": ["doc", "readme", "guide", "manual", "wiki", "tutorial", "help"],
@@ -65,8 +56,8 @@ class HybridClassifierAdapter(ClassifierPort):
         "Performance": ["slow", "latency", "speed", "optimize", "lag", "throughput", "memory"],
         "Security": ["security", "vulnerability", "cve", "auth", "token", "password", "encrypt", "exploit"],
     }
-    
-    SEMANTIC_TEMPLATES: Dict[str, List[str]] = {
+
+    SEMANTIC_TEMPLATES: dict[str, list[str]] = {
         "Bug": [
             "the application crashes when I click submit",
             "data is not saving correctly",
@@ -78,6 +69,18 @@ class HybridClassifierAdapter(ClassifierPort):
             "please add user roles support",
             "implement batch processing",
             "allow filtering by date range"
+        ],
+        "Documentation": [
+            "update the api documentation",
+            "write a guide for new users",
+            "add comments to the codebase",
+            "create a readme file"
+        ],
+        "Infrastructure": [
+            "set up a new server environment",
+            "configure the deployment pipeline",
+            "update infrastructure as code",
+            "scale the application horizontally"
         ],
         "Performance": [
             "queries are running too slowly",
@@ -94,19 +97,35 @@ class HybridClassifierAdapter(ClassifierPort):
     }
 
     def __init__(self):
+        self.embedder = None
+        self.semantic_enabled = False
+        self._template_embeddings: dict[str, any] = {}
+
+    @classmethod
+    def create(cls) -> 'HybridClassifierAdapter':
+        instance = cls()
+        instance._load_model()
+        return instance
+
+    def _load_model(self):
         try:
             from sentence_transformers import SentenceTransformer
             self.embedder = SentenceTransformer('all-MiniLM-L6-v2')
             self.semantic_enabled = True
-            logger.info("✅ Embeddings model loaded successfully")
+            self._precompute_template_embeddings()
+            logger.info("Embeddings model loaded successfully")
         except Exception as e:
-            logger.warning(f"⚠️ Embeddings not available, using keyword-only mode. Error: {e}")
-            self.embedder = None
-            self.semantic_enabled = False
+            logger.warning(f"Embeddings not available, using keyword-only mode. Error: {e}")
 
-    def classify(self, req: Requirement) -> ClassificationResult:
+    def _precompute_template_embeddings(self):
+        for category, templates in self.SEMANTIC_TEMPLATES.items():
+            self._template_embeddings[category] = self.embedder.encode(
+                templates, convert_to_tensor=True
+            )
+
+    async def classify(self, req: Requirement) -> ClassificationResult:
         text = req.text.lower()
-        
+
         keyword_result = self._classify_by_keywords(text)
         if keyword_result[1] > 0.85:
             return ClassificationResult(
@@ -115,27 +134,24 @@ class HybridClassifierAdapter(ClassifierPort):
                 confidence=ConfidenceScore(keyword_result[1]),
                 model_version="HybridClassifier-v1"
             )
-        
+
         if self.semantic_enabled:
-            semantic_result = self._classify_by_embeddings(req.text)
+            semantic_result = await asyncio.to_thread(self._classify_by_embeddings, req.text)
             return ClassificationResult(
                 requirement_id=req.id,
                 category=semantic_result[0],
                 confidence=ConfidenceScore(semantic_result[1]),
                 model_version="HybridClassifier-v1-Semantic"
             )
-        
-        category = keyword_result[0] if keyword_result[1] > 0.3 else "General"
-        confidence = max(keyword_result[1], 0.3)
 
         return ClassificationResult(
             requirement_id=req.id,
-            category=category,
-            confidence=ConfidenceScore(confidence),
+            category=keyword_result[0] if keyword_result[1] > 0.3 else "General",
+            confidence=ConfidenceScore(max(keyword_result[1], 0.3)),
             model_version="HybridClassifier-v1"
         )
-    
-    def _classify_by_keywords(self, text: str) -> Tuple[str, float]:
+
+    def _classify_by_keywords(self, text: str) -> tuple[str, float]:
         scores = {cat: 0 for cat in self.CATEGORIES}
 
         for category, keywords in self.KEYWORD_RULES.items():
@@ -151,26 +167,27 @@ class HybridClassifierAdapter(ClassifierPort):
         confidence = min(0.75 + (match_count * 0.1), 0.95)
 
         return (best_category, confidence)
-    
-    def _classify_by_embeddings(self, text: str) -> Tuple[str, float]:
+
+    def _classify_by_embeddings(self, text: str) -> tuple[str, float]:
         try:
+            from sentence_transformers import util
+
             text_embedding = self.embedder.encode(text, convert_to_tensor=True)
 
             max_similarity = 0.0
             best_category = "General"
-            
-            for category, templates in self.SEMANTIC_TEMPLATES.items():
-                template_embeddings = self.embedder.encode(templates, convert_to_tensor=True)
+
+            for category, template_embeddings in self._template_embeddings.items():
                 similarities = util.pytorch_cos_sim(text_embedding, template_embeddings)[0]
                 avg_similarity = float(similarities.mean())
 
                 if avg_similarity > max_similarity:
                     max_similarity = avg_similarity
                     best_category = category
-            
+
             confidence = max(0.4, min(max_similarity, 0.9))
             return (best_category, confidence)
 
         except Exception as e:
-            logger.error(f"❌ Embedding error: {e}, falling back to keywords")
+            logger.error(f"Embedding error: {e}, falling back to keywords")
             return ("General", 0.3)

@@ -30,7 +30,7 @@ Skema es un **sistema operativo de intake inteligente** diseñado para operar co
 
 ---
 
-## ✨ Características Actuales (FASE 1: MVP)
+## ✨ Características Actuales (FASE 4: Producción)
 
 ### 🧠 Clasificador Híbrido Inteligente
 - **Reglas Keyword-Based:** Detecta patrones determinísticos rápidamente
@@ -55,6 +55,12 @@ Skema es un **sistema operativo de intake inteligente** diseñado para operar co
 - `GET /review` - Panel de revisión
 - `GET /metrics` - Métricas del sistema
 - `GET /health` - Health check
+
+### 🔒 Seguridad y Control
+- **API Key Auth** (opt-in via `API_KEY` env var)
+- **Rate Limiting** (configurable: `RATE_LIMIT_PER_MINUTE`)
+- **CORS configurable** (`CORS_ORIGINS`)
+- **Request ID tracking** en headers de respuesta
 
 ### 📦 Categorías Soportadas
 - **Bug:** Defectos, errores, crashes
@@ -182,22 +188,25 @@ skema/
 ├── core/                  # Dominio (limpio, sin dependencias)
 │   ├── interfaces.py      # Puertos hexagonales
 │   ├── models.py          # Entidades y Value Objects
-│   └── use_cases.py       # Application Services
+│   └── use_cases.py       # Casos de uso
 ├── adapters/              # Implementaciones concretas
 │   ├── classifiers.py     # Dummy + Hybrid (Reglas + Embeddings)
-│   └── processor.py       # Limpieza de texto
+│   └── storage.py         # Repositorios en memoria
 ├── infrastructure/        # Capas técnicas
-│   ├── database.py        # SQLAlchemy setup
+│   ├── database.py        # SQLAlchemy async setup
 │   ├── models.py          # ORM Models
 │   └── repositories.py    # PostgreSQL implementations
 ├── api/                   # API REST + Dashboard
-│   └── main.py            # FastAPI server
+│   ├── main.py            # FastAPI server
+│   └── middleware.py      # Auth, rate limit, error handlers, request ID
 ├── dashboard/             # UI (Jinja2 templates)
-│   └── templates/         # HTML pages
-├── datasets/              # Data generation
-│   └── __init__.py        # Synthetic ticket generator
-├── bootstrap.py           # Dependency injection
-└── tests/                 # Test suite
+│   └── templates/         # HTML pages (index, review, metrics)
+├── datasets/              # Synthetic data generator
+├── bootstrap.py           # Composición de dependencias
+├── alembic/               # Migraciones de base de datos
+│   ├── env.py
+│   └── versions/          # Migration scripts
+└── tests/                 # Suite de tests (20 tests)
 ```
 
 ---
@@ -217,16 +226,32 @@ skema/
 - [x] Refactorización completa a asíncrono (FastAPI + Asyncpg)
 - [x] Configuración centralizada (Pydantic Settings)
 - [x] Optimización de IA (Carga Singleton del modelo)
-- [x] Unit + Integration tests configurados
-- [x] Error handling mejorado
+- [x] Unit + Integration + Contract tests (20 tests)
+- [x] Error handling mejorado con handlers globales
 
-### 🔌 Fase 3: Conectores Reales
+### ✅ Fase 3: Calidad y Seguridad (COMPLETADA)
+- [x] Middleware de autenticación (API Key)
+- [x] Rate limiting configurable
+- [x] Request ID tracking
+- [x] CORS configurable
+- [x] Tests de infraestructura (repositorios PostgreSQL via SQLite)
+- [x] Tests de contratos para todos los repositorios
+- [x] Validación estricta de configuración (extra="forbid")
+- [x] Modelos con CHECK constraints y timezone-aware
+
+### ✅ Fase 4: Producción (COMPLETADA)
+- [x] Migraciones Alembic para esquema de base de datos
+- [x] Pool de conexiones configurable (pool_size=5)
+- [x] Inicialización graceful (sin bloqueo si DB no disponible)
+- [x] Arquitectura hexagonal estricta (0 imports de frameworks en core/)
+
+### 🔌 Fase 5: Conectores Reales
 - [ ] GitHub Issues adapter
 - [ ] Jira API adapter
 - [ ] Webhook listeners
 - [ ] Batch processing
 
-### 🧠 Fase 4: Inteligencia Avanzada
+### 🧠 Fase 6: Inteligencia Avanzada
 - [ ] Reentrenamiento incremental
 - [ ] Multi-model ensemble
 - [ ] Detección de drift
@@ -254,9 +279,14 @@ DATABASE_URL=postgresql://skema:skema@localhost:5432/skema_db
 
 # API
 API_PORT=8000
+CORS_ORIGINS=["*"]
+
+# Security (opt-in; leave empty to disable)
+API_KEY=
+RATE_LIMIT_PER_MINUTE=60
 
 # Classifier
-CLASSIFIER_MODEL=hybrid
+CLASSIFIER_MODEL=hybrid       # hybrid | dummy
 CONFIDENCE_THRESHOLD=0.60
 
 # Embeddings
@@ -287,7 +317,7 @@ MIT
 
 ---
 
-**Estado Actual:** FASE 2 - Asíncrono y Optimizado ✅
-Última actualización: 15 de mayo de 2026
+**Estado Actual:** FASE 4 - Producción ✅
+Última actualización: 21 de junio de 2026
 
 Para más detalles técnicos, ver [CHANGELOG_MVP.md](CHANGELOG_MVP.md)

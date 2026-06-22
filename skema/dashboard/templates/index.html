@@ -62,7 +62,7 @@
                     {% endif %}
                 </td>
                 <td>
-                    <button class="action-button" onclick="openModal('feedback-modal');">Feedback</button>
+                    <button class="action-button" onclick="document.getElementById('feedback-id').value='{{ item.requirement_id }}'; openModal('feedback-modal');">Feedback</button>
                 </td>
             </tr>
             {% endfor %}
@@ -74,6 +74,7 @@
 <div id="feedback-modal" class="modal">
     <div class="modal-content">
         <h2>📝 Proporcionar Feedback</h2>
+        <input type="hidden" id="feedback-id" value="">
         <div class="form-group">
             <label>¿Cuál es la categoría correcta?</label>
             <select id="feedback-category">
@@ -97,7 +98,7 @@
         </div>
         <div class="form-actions">
             <button class="action-button secondary" onclick="closeModal('feedback-modal');">Cancelar</button>
-            <button class="action-button" onclick="submitFeedback();">Guardar Feedback</button>
+            <button class="action-button" onclick="submitFeedback(document.getElementById('feedback-id').value);">Guardar Feedback</button>
         </div>
     </div>
 </div>

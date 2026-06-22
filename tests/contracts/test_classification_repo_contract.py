@@ -4,7 +4,7 @@ from skema.adapters.storage import InMemoryClassificationRepository
 from skema.core.models import ClassificationResult, ConfidenceScore, Requirement
 
 
-def test_inmemory_classification_repository_contract():
+async def test_inmemory_classification_repository_contract():
     repo = InMemoryClassificationRepository()
 
     req = Requirement.create("Export report failed when user clicks export")
@@ -12,12 +12,12 @@ def test_inmemory_classification_repository_contract():
         requirement_id=req.id,
         category="Reporting",
         confidence=ConfidenceScore(0.85),
-        model_version="DummyRules-v2"
+        model_version="DummyRules-v2",
     )
 
-    repo.save(result)
+    await repo.save(result)
 
-    loaded = repo.get_by_requirement_id(req.id)
+    loaded = await repo.get_by_requirement_id(req.id)
     assert loaded is not None
     assert loaded.requirement_id == result.requirement_id
     assert loaded.category == result.category

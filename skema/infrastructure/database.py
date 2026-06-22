@@ -1,46 +1,44 @@
-"""
-Database configuration and session management.
-"""
+import logging
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
+
 from skema.core.config import settings
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy.pool import NullPool
+logger = logging.getLogger(__name__)
 
-# Base para todos los modelos
 Base = declarative_base()
 
-# Configuración de base de datos asíncrona
-# Aseguramos que la URL use asyncpg si es postgresql
 db_url = settings.DATABASE_URL
 if db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
 
-# Engine asíncrono
 engine = create_async_engine(
     db_url,
-    poolclass=NullPool,  # No connection pooling por ahora
-    echo=settings.SQL_ECHO
+    pool_size=5,
+    max_overflow=5,
+    pool_pre_ping=True,
+    echo=settings.SQL_ECHO,
 )
 
-# Session factory asíncrono
 SessionLocal = sessionmaker(
-    autocommit=False, 
-    autoflush=False, 
-    bind=engine, 
-    class_=AsyncSession
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    class_=AsyncSession,
 )
+
 
 async def get_db():
-    """Dependency injection para FastAPI"""
     async with SessionLocal() as db:
         yield db
 
+
 async def init_db():
-    """Crea todas las tablas"""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        raise

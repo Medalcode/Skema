@@ -1,15 +1,11 @@
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 
 @dataclass(frozen=True, order=True)
 class ConfidenceScore:
-    """
-    Value Object que representa la certeza de una clasificación.
-    Garantiza que el valor siempre esté entre 0.0 y 1.0.
-    """
     value: float
 
     def __post_init__(self):
@@ -19,34 +15,34 @@ class ConfidenceScore:
     def __str__(self):
         return f"{self.value:.2f}"
 
+
 @dataclass(frozen=True)
 class Requirement:
-    """
-    Entidad raíz del agregado. Representa la unidad de trabajo cruda.
-    Inmutable.
-    """
     id: str
     text: str
-    timestamp: datetime = field(default_factory=datetime.now)
-    metadata: dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    context: dict[str, Any] = field(default_factory=dict)
+    source: str | None = None
 
     @classmethod
-    def create(cls, text: str, metadata: dict[str, Any] | None = None) -> 'Requirement':
+    def create(cls, text: str, context: dict[str, Any] | None = None,
+               source: str | None = None) -> 'Requirement':
         if not text.strip():
             raise ValueError("Requirement text cannot be empty")
+        if len(text) > 5000:
+            raise ValueError("Requirement text too long (max 5000 chars)")
         return cls(
             id=str(uuid.uuid4()),
             text=text,
-            metadata=metadata or {}
+            context=context or {},
+            source=source
         )
+
 
 @dataclass(frozen=True)
 class ClassificationResult:
-    """
-    Value Object complejo que agrupa el resultado de la inferencia.
-    """
     requirement_id: str
     category: str
     confidence: ConfidenceScore
     model_version: str
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

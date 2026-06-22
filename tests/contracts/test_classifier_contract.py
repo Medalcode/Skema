@@ -1,13 +1,11 @@
-
 from skema.adapters.classifiers import DummyClassifierAdapter
 from skema.core.models import ClassificationResult, ConfidenceScore, Requirement
 
 
-def test_dummy_classifier_contract():
-    """Contrato mínimo: `classify` acepta `Requirement` y devuelve `ClassificationResult` con `ConfidenceScore` válido."""
+async def test_dummy_classifier_contract():
     adapter = DummyClassifierAdapter()
     req = Requirement.create("The server has high latency and slow response")
-    result = adapter.classify(req)
+    result = await adapter.classify(req)
 
     assert isinstance(result, ClassificationResult)
     assert result.requirement_id == req.id
