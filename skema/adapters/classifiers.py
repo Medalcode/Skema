@@ -1,9 +1,8 @@
 import asyncio
 import logging
-from functools import lru_cache
 
 from skema.core.interfaces import ClassifierPort
-from skema.core.models import Requirement, ClassificationResult, ConfidenceScore
+from skema.core.models import ClassificationResult, ConfidenceScore, Requirement
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +161,7 @@ class HybridClassifierAdapter(ClassifierPort):
         if not any(scores.values()):
             return ("General", 0.3)
 
-        best_category = max(scores, key=scores.get)
+        best_category = max(scores, key=lambda cat: scores[cat])
         match_count = scores[best_category]
         confidence = min(0.75 + (match_count * 0.1), 0.95)
 

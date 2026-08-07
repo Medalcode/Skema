@@ -3,7 +3,6 @@ Dataset generator - crea tickets sintéticos realistas para demostración.
 """
 
 import random
-from typing import List
 
 from skema.core.models import Requirement
 
@@ -135,14 +134,26 @@ def generate_synthetic_tickets(count: int = 500) -> list[Requirement]:
                     ""
                 ])
 
+            source_val = random.choice(["github", "jira", "email", "slack"])
             ticket = Requirement.create(
                 text=text,
-                metadata={
-                    "source": random.choice(["github", "jira", "email", "slack"]),
+                context={
                     "priority": random.choice(["low", "medium", "high"]),
-                }
+                },
+                source=source_val,
             )
             tickets.append(ticket)
+
+    # Fill any rounding discrepancy to guarantee requested count
+    all_categories = list(TICKET_TEMPLATES.keys())
+    while len(tickets) < count:
+        cat = random.choice(all_categories)
+        text = random.choice(TICKET_TEMPLATES[cat])
+        tickets.append(Requirement.create(
+            text=text,
+            context={"priority": random.choice(["low", "medium", "high"])},
+            source=random.choice(["github", "jira", "email", "slack"]),
+        ))
 
     # Mezcla
     random.shuffle(tickets)

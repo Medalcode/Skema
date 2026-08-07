@@ -69,7 +69,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     logger.info("Starting up Skema API")
     try:
         await init_db()
@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI):
 
 def register_error_handlers(app: FastAPI):
     @app.exception_handler(ValueError)
-    async def value_error_handler(request: Request, exc: ValueError):
+    async def value_error_handler(_request: Request, exc: ValueError):
         return JSONResponse(
             status_code=400,
             content={"detail": str(exc)},

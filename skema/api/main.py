@@ -85,7 +85,7 @@ async def health_check():
 )
 async def classify_endpoint(req_dto: RequirementRequest,
                             db: AsyncSession = Depends(get_db)):
-    use_case = bootstrap()
+    use_case = bootstrap(db)
     domain_req = Requirement.create(
         text=req_dto.text,
         context=req_dto.context,
@@ -238,11 +238,13 @@ async def dashboard_metrics(db: AsyncSession = Depends(get_db)):
             select(func.avg(ClassificationModel.confidence))
         )
 
+        total_count = total_res.scalar() or 0
         template = get_template("metrics.html")
         return template.render(
             stats={
-                "total_processed": total_res.scalar(),
-                "total_feedback": tf_res.scalar(),
+                "total_processed": total_count,
+                "total_processed_display": max(total_count, 1),
+                "total_feedback": tf_res.scalar() or 0,
                 "accuracy": accuracy,
                 "avg_confidence": float(avg_res.scalar() or 0.75),
             },
