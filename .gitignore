@@ -28,6 +28,12 @@ Thumbs.db
 dist/
 build/
 
-# Pytest
+# Pytest & Coverage
 .pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
 .vercel
+
+# Graphify Output
+graphify-out/

@@ -8,7 +8,7 @@ from skema.core.interfaces import (
     FeedbackRepositoryPort,
     RequirementRepositoryPort,
 )
-from skema.core.models import ClassificationResult, ConfidenceScore, Requirement
+from skema.core.models import ClassificationResult, Requirement
 from skema.infrastructure.models import (
     ClassificationModel,
     FeedbackModel,
@@ -126,8 +126,8 @@ class PostgreSQLFeedbackRepository(FeedbackRepositoryPort):
         self.session = session
 
     async def save_feedback(self, classification_id: str, corrected_category: str,
-                           is_correct: bool, notes: str = None,
-                           created_by: str = None) -> None:
+                           is_correct: bool, notes: str | None = None,
+                           created_by: str | None = None) -> None:
         try:
             feedback = FeedbackModel(
                 classification_id=classification_id,
@@ -148,7 +148,7 @@ class PostgreSQLFeedbackRepository(FeedbackRepositoryPort):
             result_total = await self.session.execute(
                 select(func.count(FeedbackModel.id))
             )
-            total = result_total.scalar()
+            total = result_total.scalar() or 0
             if total == 0:
                 return 0.0
 
@@ -156,8 +156,8 @@ class PostgreSQLFeedbackRepository(FeedbackRepositoryPort):
                 select(func.count(FeedbackModel.id))
                 .filter(FeedbackModel.confidence_was_correct.is_(True))
             )
-            correct = result_correct.scalar()
-            return correct / total
+            correct = result_correct.scalar() or 0
+            return float(correct / total)
         except Exception as e:
             logger.error(f"Failed to calculate accuracy: {e}", exc_info=True)
             raise

@@ -1,12 +1,11 @@
 import logging
-from uuid import uuid4
 
 from skema.core.interfaces import (
     ClassificationRepositoryPort,
     FeedbackRepositoryPort,
     RequirementRepositoryPort,
 )
-from skema.core.models import ClassificationResult, ConfidenceScore, Requirement
+from skema.core.models import ClassificationResult, Requirement
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +64,8 @@ class InMemoryFeedbackRepository(FeedbackRepositoryPort):
         self._correct_count = 0
 
     async def save_feedback(self, classification_id: str, corrected_category: str,
-                           is_correct: bool, notes: str = None,
-                           created_by: str = None) -> None:
+                           is_correct: bool, notes: str | None = None,
+                           created_by: str | None = None) -> None:
         self._store[classification_id] = {
             "classification_id": classification_id,
             "corrected_category": corrected_category,

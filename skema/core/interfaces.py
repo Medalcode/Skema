@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from skema.core.models import ClassificationResult, Requirement
 
@@ -24,7 +23,7 @@ class RequirementRepositoryPort(ABC):
         pass
 
     @abstractmethod
-    async def get_by_id(self, requirement_id: str) -> Optional[Requirement]:
+    async def get_by_id(self, requirement_id: str) -> Requirement | None:
         pass
 
     @abstractmethod
@@ -42,7 +41,7 @@ class ClassificationRepositoryPort(ABC):
         pass
 
     @abstractmethod
-    async def get_by_requirement_id(self, req_id: str) -> Optional[ClassificationResult]:
+    async def get_by_requirement_id(self, req_id: str) -> ClassificationResult | None:
         pass
 
     @abstractmethod
@@ -50,7 +49,9 @@ class ClassificationRepositoryPort(ABC):
         pass
 
     @abstractmethod
-    async def get_low_confidence(self, threshold: float = 0.6, limit: int = 50) -> list[ClassificationResult]:
+    async def get_low_confidence(
+        self, threshold: float = 0.6, limit: int = 50
+    ) -> list[ClassificationResult]:
         pass
 
 
@@ -60,7 +61,8 @@ class FeedbackRepositoryPort(ABC):
     """
     @abstractmethod
     async def save_feedback(self, classification_id: str, corrected_category: str,
-                           is_correct: bool, notes: str = None, created_by: str = None) -> None:
+                           is_correct: bool, notes: str | None = None,
+                           created_by: str | None = None) -> None:
         pass
 
     @abstractmethod
