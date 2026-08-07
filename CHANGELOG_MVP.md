@@ -2,6 +2,16 @@
 
 Este documento lista todos los cambios realizados en Skema para transformarlo de **arquitectura conceptual** a **producto funcional demostrable**.
 
+## 🚀 v0.4.1 - Hardening de Calidad, Tipado Estático & Cobertura QA (2026-08-07)
+
+- **Inyección de Dependencias en API:** Parametrización de `bootstrap(session)` para inyectar repositorios PostgreSQL reales cuando `AsyncSession` está disponible.
+- **Tipado Estático PEP 484 & Mypy:** Corrección de tipos opcionales explícitos (`notes: str | None = None`) y paso del linter `mypy skema` con 0 errores.
+- **Corrección de Bugs:** Corrección del parámetro de metadatos en `generate_synthetic_tickets()`, prevención de `ZeroDivisionError` en métricas y actualización a `async_sessionmaker` (SQLAlchemy 2.0).
+- **Ampliación de Pruebas Automatizadas:** Creación de suites completas de pruebas unitarias e integrales (`tests/unit/test_processor.py`, `tests/unit/test_datasets.py`, `tests/unit/test_bootstrap.py`, `tests/integration/test_dashboard_api.py`), elevando la cobertura total al **82%** con **38 tests aprobados**.
+- **DevOps & CI/CD:** Actualización del flujo de GitHub Actions (`ci.yml`) para ejecutar `ruff`, `mypy` y la suite de pruebas completa en cada commit/PR. Corrección del mando `HEALTHCHECK` en `Dockerfile`.
+
+---
+
 ## 🎯 Objetivo
 
 Demostrar un pipeline **end-to-end** funcional con:

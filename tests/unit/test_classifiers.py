@@ -1,4 +1,3 @@
-import pytest
 from skema.adapters.classifiers import DummyClassifierAdapter, HybridClassifierAdapter
 from skema.core.models import Requirement
 

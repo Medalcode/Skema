@@ -1,4 +1,3 @@
-import pytest
 
 from skema.adapters.storage import InMemoryRequirementRepository
 from skema.core.models import Requirement

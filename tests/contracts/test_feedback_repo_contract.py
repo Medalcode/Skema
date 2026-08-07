@@ -1,4 +1,3 @@
-import pytest
 
 from skema.adapters.storage import InMemoryClassificationRepository, InMemoryFeedbackRepository
 from skema.core.models import ClassificationResult, ConfidenceScore, Requirement

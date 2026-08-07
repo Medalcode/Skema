@@ -1,4 +1,3 @@
-import pytest
 from skema.core.interfaces import ClassificationRepositoryPort, ClassifierPort
 from skema.core.models import ClassificationResult, ConfidenceScore, Requirement
 from skema.core.use_cases import ClassifyRequirementUseCase

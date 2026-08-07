@@ -1,4 +1,5 @@
 import pytest
+
 from skema.core.models import ClassificationResult, ConfidenceScore, Requirement
 from skema.infrastructure.repositories import (
     PostgreSQLClassificationRepository,
